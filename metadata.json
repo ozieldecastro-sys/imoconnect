@@ -1,0 +1,7 @@
+{
+  "name": "ImoConnect - Plataforma de Geração de Leads",
+  "description": "Uma plataforma inteligente para conectar leads imobiliários qualificados a corretores, com pontuação baseada em IA e gestão de exclusividade.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}
