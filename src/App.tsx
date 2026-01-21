@@ -1,18 +1,19 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import Home from "./pages/Home";
-import LeadForm from "./pages/LeadForm";
-import CRM from "./pages/CRM";
+import CaptureLead from "./pages/CaptureLead";
+import Login from "./pages/Login";
+import Dashboard from "./pages/Dashboard";
 
-function App() {
+export default function App() {
   return (
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<Home />} />
-        <Route path="/lead" element={<LeadForm />} />
-        <Route path="/crm" element={<CRM />} />
+        <Route path="/captar-lead" element={<CaptureLead />} />
+        <Route path="/login" element={<Login />} />
+        <Route path="/dashboard" element={<Dashboard />} />
       </Routes>
     </BrowserRouter>
   );
 }
 
-export default App;
