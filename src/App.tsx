@@ -1,24 +1,18 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import Home from "./pages/Home";
+import LeadForm from "./pages/LeadForm";
+import CRM from "./pages/CRM";
 
 function App() {
-  return <Home />;
-}
-
-export default App;
-
-import PainelDoCorretor from "./pages/PainelDoCorretor";
-import CatalogoDeImoveis from "./pages/CatalogoDeImoveis";
-import LeadDetails from "./pages/LeadDetails";
-
-export default function App() {
   return (
     <BrowserRouter>
       <Routes>
-        <Route path="/" element={<PublicHome />} />
-        <Route path="/corretor" element={<PainelDoCorretor />} />
-        <Route path="/catalogo" element={<CatalogoDeImoveis />} />
-        <Route path="/lead/:id" element={<LeadDetails />} />
+        <Route path="/" element={<Home />} />
+        <Route path="/lead" element={<LeadForm />} />
+        <Route path="/crm" element={<CRM />} />
       </Routes>
     </BrowserRouter>
   );
 }
+
+export default App;
