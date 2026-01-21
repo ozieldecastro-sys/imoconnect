@@ -1,17 +1,19 @@
-// Import the functions you need from the SDKs you need
+// src/firebase.ts
 import { initializeApp } from "firebase/app";
-// TODO: Add SDKs for Firebase products that you want to use
-// https://firebase.google.com/docs/web/setup#available-libraries
+import { getFirestore } from "firebase/firestore";
 
-// Your web app's Firebase configuration
+// 🔹 Substitua pelos dados do seu Firebase
 const firebaseConfig = {
-  apiKey: "AIzaSyBmWT1U7EDook02hspLHKIeIUvxqN6rvJg",
-  authDomain: "imoconnect-9d71c.firebaseapp.com",
-  projectId: "imoconnect-9d71c",
-  storageBucket: "imoconnect-9d71c.firebasestorage.app",
-  messagingSenderId: "808329915206",
-  appId: "1:808329915206:web:f5a44a26cd0d30e4651347"
+  apiKey: "SUA_API_KEY",
+  authDomain: "SEU_PROJECT_ID.firebaseapp.com",
+  projectId: "SEU_PROJECT_ID",
+  storageBucket: "SEU_PROJECT_ID.appspot.com",
+  messagingSenderId: "SEU_MESSAGING_SENDER_ID",
+  appId: "SEU_APP_ID",
 };
 
-// Initialize Firebase
+// Inicializa Firebase
 const app = initializeApp(firebaseConfig);
+
+// Exporta Firestore
+export const db = getFirestore(app);
