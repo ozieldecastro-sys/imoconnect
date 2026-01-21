@@ -1,23 +1,40 @@
+import { useState } from "react";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { db } from "../firebase";
+
 export default function CaptureLead() {
+  const [nome, setNome] = useState("");
+  const [telefone, setTelefone] = useState("");
+  const [cidade, setCidade] = useState("");
+  const [tipoInteresse, setTipoInteresse] = useState("");
+
+  async function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+
+    await addDoc(collection(db, "leads"), {
+      nome,
+      telefone,
+      cidade,
+      tipoInteresse,
+      status: "novo",
+      createdAt: serverTimestamp()
+    });
+
+    alert("Lead enviado com sucesso!");
+    setNome("");
+    setTelefone("");
+    setCidade("");
+    setTipoInteresse("");
+  }
+
   return (
-    <div style={{ padding: 24, maxWidth: 480, margin: "0 auto" }}>
-      <h1>Encontre o imóvel ideal para você</h1>
-      <p>Preencha os dados abaixo e fale com um corretor agora mesmo.</p>
-
-      <form>
-        <input placeholder="Seu nome" />
-        <input placeholder="Seu WhatsApp" />
-        
-        <select>
-          <option>Comprar</option>
-          <option>Alugar</option>
-          <option>Vender</option>
-        </select>
-
-        <input placeholder="Cidade" />
-
-        <button type="submit">Quero atendimento</button>
-      </form>
-    </div>
+    <form onSubmit={handleSubmit}>
+      <input placeholder="Nome" value={nome} onChange={e => setNome(e.target.value)} />
+      <input placeholder="Telefone" value={telefone} onChange={e => setTelefone(e.target.value)} />
+      <input placeholder="Cidade" value={cidade} onChange={e => setCidade(e.target.value)} />
+      <input placeholder="Interesse" value={tipoInteresse} onChange={e => setTipoInteresse(e.target.value)} />
+      <button type="submit">Enviar</button>
+    </form>
   );
 }
+
