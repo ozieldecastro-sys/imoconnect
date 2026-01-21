@@ -1,6 +1,11 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 
-import PublicHome from "./pages/PublicHome";
+function App() {
+  return <Home />;
+}
+
+export default App;
+
 import PainelDoCorretor from "./pages/PainelDoCorretor";
 import CatalogoDeImoveis from "./pages/CatalogoDeImoveis";
 import LeadDetails from "./pages/LeadDetails";
