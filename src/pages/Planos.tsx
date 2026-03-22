@@ -1,5 +1,4 @@
 import { useMemo } from "react";
-import { ArrowLeft, CheckCircle2, Crown, Lock, Star, Zap } from "lucide-react";
 
 type PlanoAtual = "BASIC" | "PRO" | "ADMIN";
 
@@ -70,7 +69,7 @@ function Planos() {
     if (planoAtual === "ADMIN" && plano === "BASIC") {
       return (
         <span className="inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-600">
-          <Lock size={14} />
+          <span>🔒</span>
           ADMIN tem acesso superior
         </span>
       );
@@ -79,7 +78,7 @@ function Planos() {
     if (isAtual) {
       return (
         <span className="inline-flex items-center gap-2 rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
-          <CheckCircle2 size={14} />
+          <span>✅</span>
           Plano atual
         </span>
       );
@@ -87,7 +86,7 @@ function Planos() {
 
     return (
       <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-        <Star size={14} />
+        <span>⭐</span>
         Disponível para upgrade
       </span>
     );
@@ -99,7 +98,7 @@ function Planos() {
         <div className="mb-8 flex flex-col gap-4 rounded-3xl bg-white p-6 shadow-sm ring-1 ring-slate-200 md:flex-row md:items-center md:justify-between">
           <div>
             <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700">
-              <Crown size={16} />
+              <span>👑</span>
               Planos ImoConnect
             </div>
 
@@ -118,7 +117,7 @@ function Planos() {
             onClick={handleVoltar}
             className="inline-flex items-center justify-center gap-2 rounded-2xl border border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-100"
           >
-            <ArrowLeft size={18} />
+            <span>←</span>
             Voltar
           </button>
         </div>
@@ -159,7 +158,7 @@ function Planos() {
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-slate-100 px-3 py-1 text-sm font-semibold text-slate-700">
-                  <Lock size={16} />
+                  <span>🔓</span>
                   Plano BASIC
                 </div>
 
@@ -184,23 +183,23 @@ function Planos() {
 
             <ul className="space-y-3">
               <li className="flex items-start gap-3 text-sm text-slate-700">
-                <CheckCircle2 className="mt-0.5 text-emerald-600" size={18} />
+                <span className="mt-0.5">✅</span>
                 Pode visualizar os leads disponíveis no sistema
               </li>
               <li className="flex items-start gap-3 text-sm text-slate-700">
-                <CheckCircle2 className="mt-0.5 text-emerald-600" size={18} />
+                <span className="mt-0.5">✅</span>
                 Pode assumir apenas Lead em Oportunidade
               </li>
               <li className="flex items-start gap-3 text-sm text-slate-700">
-                <CheckCircle2 className="mt-0.5 text-emerald-600" size={18} />
+                <span className="mt-0.5">✅</span>
                 Exclusividade de 24 horas
               </li>
               <li className="flex items-start gap-3 text-sm text-slate-700">
-                <CheckCircle2 className="mt-0.5 text-emerald-600" size={18} />
+                <span className="mt-0.5">✅</span>
                 Acesso inicial para operação comercial
               </li>
               <li className="flex items-start gap-3 text-sm text-slate-700">
-                <CheckCircle2 className="mt-0.5 text-emerald-600" size={18} />
+                <span className="mt-0.5">✅</span>
                 Visualização mais limitada dos dados do lead
               </li>
             </ul>
@@ -214,7 +213,7 @@ function Planos() {
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
                 <div className="mb-3 inline-flex items-center gap-2 rounded-full bg-blue-100 px-3 py-1 text-sm font-semibold text-blue-700">
-                  <Zap size={16} />
+                  <span>⚡</span>
                   Plano PRO
                 </div>
 
@@ -240,23 +239,23 @@ function Planos() {
 
             <ul className="space-y-3">
               <li className="flex items-start gap-3 text-sm text-slate-700">
-                <CheckCircle2 className="mt-0.5 text-emerald-600" size={18} />
+                <span className="mt-0.5">✅</span>
                 Pode assumir Lead em Oportunidade, Lead Quente e Lead Pronto
               </li>
               <li className="flex items-start gap-3 text-sm text-slate-700">
-                <CheckCircle2 className="mt-0.5 text-emerald-600" size={18} />
+                <span className="mt-0.5">✅</span>
                 Exclusividade de 48 horas por lead
               </li>
               <li className="flex items-start gap-3 text-sm text-slate-700">
-                <CheckCircle2 className="mt-0.5 text-emerald-600" size={18} />
+                <span className="mt-0.5">✅</span>
                 Mais contexto comercial para tomar decisão melhor
               </li>
               <li className="flex items-start gap-3 text-sm text-slate-700">
-                <CheckCircle2 className="mt-0.5 text-emerald-600" size={18} />
+                <span className="mt-0.5">✅</span>
                 Melhor posição para operar leads mais valiosos
               </li>
               <li className="flex items-start gap-3 text-sm text-slate-700">
-                <CheckCircle2 className="mt-0.5 text-emerald-600" size={18} />
+                <span className="mt-0.5">✅</span>
                 Plano pensado para escalar atendimento e conversão
               </li>
             </ul>
@@ -278,7 +277,7 @@ function Planos() {
                   disabled
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-bold text-white opacity-90"
                 >
-                  <CheckCircle2 size={18} />
+                  <span>✅</span>
                   {planoAtual === "ADMIN"
                     ? "Seu perfil já está acima do PRO"
                     : "Você já está no plano PRO"}
@@ -288,7 +287,7 @@ function Planos() {
                   onClick={handleUpgrade}
                   className="inline-flex w-full items-center justify-center gap-2 rounded-2xl bg-blue-600 px-5 py-4 text-sm font-bold text-white transition hover:bg-blue-700"
                 >
-                  <Crown size={18} />
+                  <span>👑</span>
                   Quero fazer upgrade para PRO
                 </button>
               )}
@@ -344,7 +343,7 @@ function Planos() {
                 onClick={handleUpgrade}
                 className="inline-flex items-center justify-center gap-2 rounded-2xl bg-slate-900 px-5 py-4 text-sm font-bold text-white transition hover:bg-slate-800"
               >
-                <Crown size={18} />
+                <span>👑</span>
                 Falar agora sobre upgrade PRO
               </button>
             ) : (
