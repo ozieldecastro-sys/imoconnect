@@ -1,24 +1,77 @@
-# Logs
-logs
+# =========================
+# DEPENDÊNCIAS
+# =========================
+node_modules/
+functions/node_modules/
+
+# =========================
+# BUILD / DIST
+# =========================
+dist/
+build/
+functions/lib/
+.vite/
+
+# =========================
+# ARQUIVOS DE AMBIENTE
+# =========================
+.env
+.env.*
+!.env.example
+
+# =========================
+# LOGS
+# =========================
 *.log
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-lerna-debug.log*
+firebase-debug.log
+firestore-debug.log
+functions/firestore-debug.log
+functions/src/firestore-debug.log
 
-node_modules
-dist
-dist-ssr
-*.local
-
-# Editor directories and files
-.vscode/*
-!.vscode/extensions.json
-.idea
+# =========================
+# SISTEMA OPERACIONAL / EDITORES
+# =========================
 .DS_Store
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.sw?
+Thumbs.db
+.vscode/
+.idea/
+
+# =========================
+# COBERTURA / TESTES
+# =========================
+coverage/
+
+# =========================
+# ARQUIVOS TEMPORÁRIOS
+# =========================
+*.tmp
+*.temp
+*.bak
+*.swp
+
+# =========================
+# CREDENCIAIS / CHAVES / SERVICE ACCOUNT
+# =========================
+serviceAccountKey.json
+scripts/serviceAccountKey.json
+functions/imoconnect-9d71c-firebase-adminsdk-fbsvc-d509c17099.json
+*.pem
+*.key
+*.p12
+
+# =========================
+# FIREBASE EMULATOR / EXPORTS
+# =========================
+emulator-data/
+firebase-export-*/
+functions/firebase-export-*/
+functions/src/firebase-export-*/
+
+# =========================
+# ARQUIVOS LOCAIS QUE NÃO DEVEM SUBIR
+# =========================
+functions/.runtimeconfig.json

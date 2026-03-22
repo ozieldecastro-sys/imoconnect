@@ -1,0 +1,31 @@
+{
+  "functions": {
+    "source": "functions",
+    "runtime": "nodejs20"
+  },
+  "emulators": {
+    "hub": {
+      "host": "localhost",
+      "port": 4510
+    },
+    "ui": {
+      "host": "localhost",
+      "port": 4011
+    },
+    "auth": {
+      "host": "localhost",
+      "port": 9100
+    },
+    "firestore": {
+      "host": "localhost",
+      "port": 8097
+    },
+    "functions": {
+      "host": "localhost",
+      "port": 5001
+    },
+    "logging": {
+      "port": 4501
+    }
+  }
+}
