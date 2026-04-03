@@ -1,9 +1,49 @@
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 
 type PlanoAtual = "BASIC" | "PRO" | "ADMIN";
+type CheckoutStatus = "idle" | "loading" | "success" | "error";
+
+type CorretorSalvo = {
+  id?: string;
+  nome?: string;
+  email?: string;
+  plano?: string;
+  cpf?: string;
+  telefone?: string;
+  celular?: string;
+};
+
+type CheckoutResponse = {
+  success?: boolean;
+  ambiente?: string;
+  checkoutId?: string;
+  checkoutUrl?: string;
+  message?: string;
+  error?: string;
+};
+
+function apenasNumeros(valor: string | undefined | null) {
+  return String(valor || "").replace(/\D/g, "");
+}
+
+function formatarMensagemErro(erro: unknown) {
+  if (erro instanceof Error && erro.message) {
+    return erro.message;
+  }
+
+  if (typeof erro === "string" && erro.trim()) {
+    return erro;
+  }
+
+  return "Não foi possível iniciar o checkout agora. Tente novamente em instantes.";
+}
 
 function Planos() {
-  const corretorSalvo = useMemo(() => {
+  const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus>("idle");
+  const [checkoutMensagem, setCheckoutMensagem] = useState("");
+  const [checkoutUrlGerada, setCheckoutUrlGerada] = useState("");
+
+  const corretorSalvo = useMemo<CorretorSalvo | null>(() => {
     try {
       const raw = localStorage.getItem("corretor");
       return raw ? JSON.parse(raw) : null;
@@ -20,7 +60,7 @@ function Planos() {
   })();
 
   const nomeCorretor = corretorSalvo?.nome || "Corretor";
-  const whatsappUpgrade = "https://wa.me/558788550592";
+  const corretorId = corretorSalvo?.id || "";
 
   const comparativo = [
     {
@@ -54,15 +94,157 @@ function Planos() {
     window.history.back();
   }
 
-  function handleUpgrade() {
-    const mensagem = encodeURIComponent(
-      `Olá! Quero fazer upgrade do meu plano no ImoConnect.\n\nNome: ${nomeCorretor}\nPlano atual: ${planoAtual}\nInteresse: Upgrade para PRO`
-    );
+  async function iniciarCheckoutPro() {
+    if (!corretorId) {
+      setCheckoutStatus("error");
+      setCheckoutMensagem(
+        "Não foi possível identificar o corretor logado. Saia e entre novamente na plataforma."
+      );
+      return;
+    }
 
-    window.open(`${whatsappUpgrade}?text=${mensagem}`, "_blank");
+    let popup: Window | null = null;
+
+    try {
+      setCheckoutStatus("loading");
+      setCheckoutMensagem("Preparando seu checkout seguro do Plano PRO...");
+      setCheckoutUrlGerada("");
+
+      popup = window.open("", "_blank", "noopener,noreferrer");
+
+      if (popup) {
+        popup.document.write(`
+          <html>
+            <head>
+              <title>ImoConnect</title>
+              <style>
+                body {
+                  font-family: Arial, sans-serif;
+                  background: #0f172a;
+                  color: #ffffff;
+                  display: flex;
+                  align-items: center;
+                  justify-content: center;
+                  min-height: 100vh;
+                  margin: 0;
+                  text-align: center;
+                  padding: 24px;
+                }
+                .box {
+                  max-width: 420px;
+                  background: rgba(255,255,255,0.08);
+                  border: 1px solid rgba(255,255,255,0.12);
+                  border-radius: 20px;
+                  padding: 28px;
+                }
+                .title {
+                  font-size: 22px;
+                  font-weight: 700;
+                  margin-bottom: 12px;
+                }
+                .text {
+                  font-size: 15px;
+                  line-height: 1.6;
+                  color: #dbeafe;
+                }
+              </style>
+            </head>
+            <body>
+              <div class="box">
+                <div class="title">ImoConnect</div>
+                <div class="text">Estamos preparando seu checkout do Plano PRO...</div>
+              </div>
+            </body>
+          </html>
+        `);
+        popup.document.close();
+      }
+
+      const payload = {
+        data: {
+          corretorId,
+          plano: "PRO_ANUAL",
+          formaPagamento: "avista",
+          customerData: {
+            name: nomeCorretor,
+            email: corretorSalvo?.email || "corretor@teste.com",
+            cpfCnpj:
+              apenasNumeros(corretorSalvo?.cpf) || "62868776060",
+            phone:
+              apenasNumeros(corretorSalvo?.telefone) ||
+              apenasNumeros(corretorSalvo?.celular) ||
+              "87991345678",
+            address: "Rua da Esperanca",
+            addressNumber: "86",
+            complement: "Apto 501",
+            postalCode: "56309664",
+            province: "Centro",
+            city: "2611101",
+          },
+        },
+      };
+
+      const response = await fetch(
+        "https://us-central1-imoconnect-9d71c.cloudfunctions.net/criarCheckoutProAsaasSandbox",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      let responseData: CheckoutResponse | null = null;
+
+      try {
+        responseData = (await response.json()) as CheckoutResponse;
+      } catch {
+        responseData = null;
+      }
+
+      if (!response.ok) {
+        throw new Error(
+          responseData?.error ||
+            responseData?.message ||
+            `Falha ao gerar checkout. HTTP ${response.status}.`
+        );
+      }
+
+      if (!responseData?.success || !responseData?.checkoutUrl) {
+        throw new Error(
+          responseData?.error ||
+            responseData?.message ||
+            "A function respondeu, mas não retornou a URL do checkout."
+        );
+      }
+
+      setCheckoutStatus("success");
+      setCheckoutMensagem(
+        "Checkout gerado com sucesso. Abrimos a página de pagamento em uma nova aba."
+      );
+      setCheckoutUrlGerada(responseData.checkoutUrl);
+
+      if (popup && !popup.closed) {
+        popup.location.href = responseData.checkoutUrl;
+      } else {
+        window.open(responseData.checkoutUrl, "_blank", "noopener,noreferrer");
+      }
+    } catch (erro) {
+      const mensagemErro = formatarMensagemErro(erro);
+
+      setCheckoutStatus("error");
+      setCheckoutMensagem(mensagemErro);
+      setCheckoutUrlGerada("");
+
+      if (popup && !popup.closed) {
+        popup.close();
+      }
+    }
   }
 
   const jaTemPlanoAvancado = planoAtual === "PRO" || planoAtual === "ADMIN";
+  const checkoutEmAndamento = checkoutStatus === "loading";
 
   return (
     <div className="min-h-screen bg-slate-100">
@@ -96,10 +278,13 @@ function Planos() {
               <div className="mt-6 flex flex-wrap gap-3">
                 {!jaTemPlanoAvancado ? (
                   <button
-                    onClick={handleUpgrade}
-                    className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-bold text-slate-900 transition hover:bg-slate-100"
+                    onClick={iniciarCheckoutPro}
+                    disabled={checkoutEmAndamento}
+                    className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-bold text-slate-900 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    Quero fazer upgrade para PRO
+                    {checkoutEmAndamento
+                      ? "Preparando checkout..."
+                      : "Quero fazer upgrade para PRO"}
                   </button>
                 ) : (
                   <div className="inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-bold text-white">
@@ -109,6 +294,39 @@ function Planos() {
                   </div>
                 )}
               </div>
+
+              {!jaTemPlanoAvancado && checkoutStatus !== "idle" && (
+                <div
+                  className={`mt-4 max-w-2xl rounded-2xl border px-4 py-3 text-sm shadow-sm ${
+                    checkoutStatus === "success"
+                      ? "border-emerald-400/40 bg-emerald-500/15 text-emerald-50"
+                      : checkoutStatus === "error"
+                      ? "border-rose-400/40 bg-rose-500/15 text-rose-50"
+                      : "border-blue-300/30 bg-white/10 text-blue-50"
+                  }`}
+                >
+                  <div className="font-semibold">
+                    {checkoutStatus === "loading" && "Iniciando pagamento"}
+                    {checkoutStatus === "success" && "Checkout liberado"}
+                    {checkoutStatus === "error" && "Não foi possível abrir o checkout"}
+                  </div>
+
+                  <div className="mt-1 leading-6">{checkoutMensagem}</div>
+
+                  {checkoutStatus === "success" && checkoutUrlGerada && (
+                    <div className="mt-3">
+                      <a
+                        href={checkoutUrlGerada}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="inline-flex items-center rounded-xl bg-white px-4 py-2 text-sm font-bold text-slate-900 transition hover:bg-slate-100"
+                      >
+                        Abrir checkout novamente
+                      </a>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
 
             <div className="rounded-3xl bg-white/10 p-6 text-white ring-1 ring-white/10 backdrop-blur">
@@ -135,6 +353,18 @@ function Planos() {
                   Mostrar de forma clara por que o PRO melhora seu posicionamento comercial
                 </p>
               </div>
+
+              {!jaTemPlanoAvancado && (
+                <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
+                  <p className="text-xs uppercase tracking-wide text-blue-100">
+                    Condição comercial oficial
+                  </p>
+                  <p className="mt-2 text-2xl font-bold text-white">R$ 990,00 à vista</p>
+                  <p className="mt-1 text-sm text-slate-200">
+                    ou 12x de R$ 99,00 no plano anual PRO
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -274,6 +504,14 @@ function Planos() {
               </p>
             </div>
 
+            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+              <p className="text-sm font-semibold text-slate-500">Assinatura anual</p>
+              <p className="mt-2 text-3xl font-bold text-slate-900">R$ 990,00</p>
+              <p className="mt-2 text-sm text-slate-600">
+                Também disponível em 12x de R$ 99,00
+              </p>
+            </div>
+
             <div className="mt-6">
               {jaTemPlanoAvancado ? (
                 <button
@@ -286,10 +524,13 @@ function Planos() {
                 </button>
               ) : (
                 <button
-                  onClick={handleUpgrade}
-                  className="inline-flex w-full items-center justify-center rounded-2xl bg-blue-600 px-5 py-4 text-sm font-bold text-white transition hover:bg-blue-700"
+                  onClick={iniciarCheckoutPro}
+                  disabled={checkoutEmAndamento}
+                  className="inline-flex w-full items-center justify-center rounded-2xl bg-blue-600 px-5 py-4 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  👑 Quero fazer upgrade para PRO
+                  {checkoutEmAndamento
+                    ? "Preparando checkout do PRO..."
+                    : "👑 Quero ativar o PRO"}
                 </button>
               )}
             </div>
@@ -315,7 +556,10 @@ function Planos() {
 
             <div className="md:hidden">
               {comparativo.map((item) => (
-                <div key={item.criterio} className="border-t border-slate-200 p-4 first:border-t-0">
+                <div
+                  key={item.criterio}
+                  className="border-t border-slate-200 p-4 first:border-t-0"
+                >
                   <p className="font-bold text-slate-900">{item.criterio}</p>
                   <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
                     Basic
@@ -365,10 +609,13 @@ function Planos() {
 
             {!jaTemPlanoAvancado ? (
               <button
-                onClick={handleUpgrade}
-                className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-4 text-sm font-bold text-white transition hover:bg-slate-800"
+                onClick={iniciarCheckoutPro}
+                disabled={checkoutEmAndamento}
+                className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                👑 Falar agora sobre upgrade PRO
+                {checkoutEmAndamento
+                  ? "Gerando checkout..."
+                  : "👑 Ativar agora o PRO"}
               </button>
             ) : (
               <div className="rounded-2xl bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700">
