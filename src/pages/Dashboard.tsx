@@ -6,8 +6,7 @@ import {
   type CSSProperties,
 } from "react";
 import { httpsCallable } from "firebase/functions";
-import { doc, getDoc } from "firebase/firestore";
-import { functions, obterExtratoFinanceiroCall, db } from "../firebase";
+import { functions, obterExtratoFinanceiroCall } from "../firebase";
 import { useNavigate } from "react-router-dom";
 
 import DashboardHero from "../components/dashboard/DashboardHero";
@@ -32,6 +31,18 @@ const URL_ENVIAR_ENQUETE =
 
 const URL_WEBHOOK_RESPONDER =
   "https://us-central1-imoconnect-9d71c.cloudfunctions.net/webhookResponderEnquete";
+
+type PerfilCorretorResponse = {
+  sucesso: boolean;
+  message: string;
+  corretor: Corretor & {
+    planoStatus?: string;
+    planoIniciadoEm?: any;
+    planoExpiraEm?: any;
+    planoOrigem?: string;
+    ultimoPagamentoPlanoEm?: any;
+  };
+};
 
 function styles() {
   return {
@@ -531,12 +542,15 @@ export default function Dashboard() {
         }
 
         try {
-          const usuarioRef = doc(db, "usuarios", usuarioBase.id);
-          const usuarioSnap = await getDoc(usuarioRef);
+          const obterPerfilCorretor = httpsCallable(functions, "obterPerfilCorretor");
+          const response = await obterPerfilCorretor({
+            corretorId: usuarioBase.id,
+          });
 
-          if (usuarioSnap.exists()) {
-            const usuarioBanco = usuarioSnap.data();
+          const data = response.data as PerfilCorretorResponse;
+          const usuarioBanco = data?.corretor;
 
+          if (data?.sucesso && usuarioBanco) {
             const usuarioCompleto: Corretor = {
               id: usuarioBase.id,
               nome: usuarioBanco.nome || usuarioBase.nome || "Usuário",
@@ -544,7 +558,7 @@ export default function Dashboard() {
               plano: usuarioBanco.plano || usuarioBase.plano || "BASIC",
               tipoUsuario:
                 usuarioBanco.tipoUsuario || usuarioBase.tipoUsuario || "corretor",
-              tipo: usuarioBanco.tipo || usuarioBase.tipo,
+              tipo: (usuarioBanco as any).tipo || usuarioBase.tipo,
               ativo: usuarioBanco.ativo,
             };
 
@@ -567,10 +581,10 @@ export default function Dashboard() {
 
             return usuarioCompleto;
           }
-        } catch (erroBanco) {
+        } catch (erroPerfil) {
           console.error(
-            "Erro ao buscar usuário no Firestore. Mantendo dados locais:",
-            erroBanco
+            "Erro ao buscar perfil do corretor via function. Mantendo dados locais:",
+            erroPerfil
           );
         }
 
