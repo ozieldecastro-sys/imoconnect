@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 
 type PlanoAtual = "BASIC" | "PRO" | "ADMIN";
 type CheckoutStatus = "idle" | "loading" | "success" | "error";
+type FormaPagamento = "avista" | "parcelado12x";
 
 type CorretorSalvo = {
   id?: string;
@@ -13,35 +14,102 @@ type CorretorSalvo = {
   celular?: string;
 };
 
+type CheckoutResult = {
+  success?: boolean;
+  ambiente?: string;
+  checkoutId?: string;
+  checkoutUrl?: string;
+  formaPagamento?: string;
+  valorExibicao?: string;
+  meioPagamentoDisponivel?: string;
+  message?: string;
+  error?: unknown;
+};
+
 type CheckoutResponse = {
   success?: boolean;
   ambiente?: string;
   checkoutId?: string;
   checkoutUrl?: string;
   message?: string;
-  error?: string;
+  error?: unknown;
+  result?: CheckoutResult;
 };
 
 function apenasNumeros(valor: string | undefined | null) {
   return String(valor || "").replace(/\D/g, "");
 }
 
-function formatarMensagemErro(erro: unknown) {
-  if (erro instanceof Error && erro.message) {
-    return erro.message;
+function extrairMensagemErro(erro: unknown): string {
+  if (!erro) {
+    return "Não foi possível iniciar o checkout agora.";
   }
 
-  if (typeof erro === "string" && erro.trim()) {
+  if (typeof erro === "string") {
     return erro;
   }
 
-  return "Não foi possível iniciar o checkout agora. Tente novamente em instantes.";
+  if (erro instanceof Error) {
+    return erro.message || "Erro inesperado ao iniciar o checkout.";
+  }
+
+  if (typeof erro === "object") {
+    const e = erro as Record<string, unknown>;
+
+    if (typeof e.message === "string" && e.message.trim()) {
+      return e.message;
+    }
+
+    if (typeof e.error === "string" && e.error.trim()) {
+      return e.error;
+    }
+
+    if (typeof e.details === "string" && e.details.trim()) {
+      return e.details;
+    }
+
+    if (typeof e.msg === "string" && e.msg.trim()) {
+      return e.msg;
+    }
+
+    if (typeof e.description === "string" && e.description.trim()) {
+      return e.description;
+    }
+
+    if (
+      e.error &&
+      typeof e.error === "object" &&
+      e.error !== null &&
+      typeof (e.error as Record<string, unknown>).message === "string"
+    ) {
+      return String((e.error as Record<string, unknown>).message);
+    }
+
+    if (
+      e.result &&
+      typeof e.result === "object" &&
+      e.result !== null &&
+      typeof (e.result as Record<string, unknown>).message === "string"
+    ) {
+      return String((e.result as Record<string, unknown>).message);
+    }
+
+    try {
+      return JSON.stringify(erro, null, 2);
+    } catch {
+      return "Erro inesperado ao iniciar o checkout.";
+    }
+  }
+
+  return "Erro inesperado ao iniciar o checkout.";
 }
 
 function Planos() {
   const [checkoutStatus, setCheckoutStatus] = useState<CheckoutStatus>("idle");
   const [checkoutMensagem, setCheckoutMensagem] = useState("");
   const [checkoutUrlGerada, setCheckoutUrlGerada] = useState("");
+  const [formaPagamentoSelecionada, setFormaPagamentoSelecionada] =
+    useState<FormaPagamento>("avista");
 
   const corretorSalvo = useMemo<CorretorSalvo | null>(() => {
     try {
@@ -94,6 +162,28 @@ function Planos() {
     window.history.back();
   }
 
+  function getTextoBotaoPrincipal() {
+    if (checkoutEmAndamento) {
+      return formaPagamentoSelecionada === "parcelado12x"
+        ? "Preparando checkout em 12x..."
+        : "Preparando checkout à vista...";
+    }
+
+    return formaPagamentoSelecionada === "parcelado12x"
+      ? "👑 Quero ativar o PRO em 12x"
+      : "👑 Quero ativar o PRO à vista";
+  }
+
+  function getTextoBotaoResumo() {
+    if (checkoutEmAndamento) {
+      return "Gerando checkout...";
+    }
+
+    return formaPagamentoSelecionada === "parcelado12x"
+      ? "👑 Ativar PRO em 12x"
+      : "👑 Ativar PRO à vista";
+  }
+
   async function iniciarCheckoutPro() {
     if (!corretorId) {
       setCheckoutStatus("error");
@@ -103,86 +193,62 @@ function Planos() {
       return;
     }
 
-    let popup: Window | null = null;
-
     try {
       setCheckoutStatus("loading");
       setCheckoutMensagem("Preparando seu checkout seguro do Plano PRO...");
       setCheckoutUrlGerada("");
 
-      popup = window.open("", "_blank", "noopener,noreferrer");
-
-      if (popup) {
-        popup.document.write(`
-          <html>
-            <head>
-              <title>ImoConnect</title>
-              <style>
-                body {
-                  font-family: Arial, sans-serif;
-                  background: #0f172a;
-                  color: #ffffff;
-                  display: flex;
-                  align-items: center;
-                  justify-content: center;
-                  min-height: 100vh;
-                  margin: 0;
-                  text-align: center;
-                  padding: 24px;
-                }
-                .box {
-                  max-width: 420px;
-                  background: rgba(255,255,255,0.08);
-                  border: 1px solid rgba(255,255,255,0.12);
-                  border-radius: 20px;
-                  padding: 28px;
-                }
-                .title {
-                  font-size: 22px;
-                  font-weight: 700;
-                  margin-bottom: 12px;
-                }
-                .text {
-                  font-size: 15px;
-                  line-height: 1.6;
-                  color: #dbeafe;
-                }
-              </style>
-            </head>
-            <body>
-              <div class="box">
-                <div class="title">ImoConnect</div>
-                <div class="text">Estamos preparando seu checkout do Plano PRO...</div>
-              </div>
-            </body>
-          </html>
-        `);
-        popup.document.close();
-      }
+      const enderecoFixo = {
+        address: "Rua da Esperanca",
+        addressNumber: "86",
+        complement: "Apto 501",
+        postalCode: "56309664",
+        province: "Centro",
+        city: "2611101",
+      };
 
       const payload = {
         data: {
           corretorId,
           plano: "PRO_ANUAL",
-          formaPagamento: "avista",
+          formaPagamento: formaPagamentoSelecionada,
+
+          address: enderecoFixo.address,
+          addressNumber: enderecoFixo.addressNumber,
+          complement: enderecoFixo.complement,
+          postalCode: enderecoFixo.postalCode,
+          province: enderecoFixo.province,
+          city: enderecoFixo.city,
+
+          endereco: {
+            address: enderecoFixo.address,
+            addressNumber: enderecoFixo.addressNumber,
+            complement: enderecoFixo.complement,
+            postalCode: enderecoFixo.postalCode,
+            province: enderecoFixo.province,
+            city: enderecoFixo.city,
+          },
+
           customerData: {
             name: nomeCorretor,
-            email: corretorSalvo?.email || "corretor@teste.com",
-            cpfCnpj:
-              apenasNumeros(corretorSalvo?.cpf) || "62868776060",
+            email: corretorSalvo?.email || "corretor1@teste.com",
+            cpfCnpj: apenasNumeros(corretorSalvo?.cpf) || "62868776060",
             phone:
               apenasNumeros(corretorSalvo?.telefone) ||
               apenasNumeros(corretorSalvo?.celular) ||
               "87991345678",
-            address: "Rua da Esperanca",
-            addressNumber: "86",
-            complement: "Apto 501",
-            postalCode: "56309664",
-            province: "Centro",
-            city: "2611101",
+            address: enderecoFixo.address,
+            addressNumber: enderecoFixo.addressNumber,
+            complement: enderecoFixo.complement,
+            postalCode: enderecoFixo.postalCode,
+            province: enderecoFixo.province,
+            city: enderecoFixo.city,
           },
         },
       };
+
+      console.log("[Planos] Iniciando checkout PRO...");
+      console.log("[Planos] Payload enviado:", payload);
 
       const response = await fetch(
         "https://us-central1-imoconnect-9d71c.cloudfunctions.net/criarCheckoutProAsaasSandbox",
@@ -195,51 +261,66 @@ function Planos() {
         }
       );
 
+      const textoBruto = await response.text();
+
+      console.log("[Planos] HTTP status:", response.status);
+      console.log("[Planos] Resposta bruta:", textoBruto);
+
       let responseData: CheckoutResponse | null = null;
 
       try {
-        responseData = (await response.json()) as CheckoutResponse;
+        responseData = textoBruto ? (JSON.parse(textoBruto) as CheckoutResponse) : null;
       } catch {
         responseData = null;
       }
 
+      const resultadoFinal: CheckoutResult = responseData?.result ?? {
+        success: responseData?.success,
+        ambiente: responseData?.ambiente,
+        checkoutId: responseData?.checkoutId,
+        checkoutUrl: responseData?.checkoutUrl,
+        message: responseData?.message,
+        error: responseData?.error,
+      };
+
       if (!response.ok) {
-        throw new Error(
-          responseData?.error ||
-            responseData?.message ||
-            `Falha ao gerar checkout. HTTP ${response.status}.`
-        );
+        const mensagemErro =
+          extrairMensagemErro(responseData) ||
+          extrairMensagemErro(textoBruto) ||
+          `Falha ao gerar checkout. HTTP ${response.status}.`;
+
+        throw new Error(mensagemErro);
       }
 
-      if (!responseData?.success || !responseData?.checkoutUrl) {
+      if (!resultadoFinal?.success) {
+        const mensagemErro =
+          extrairMensagemErro(resultadoFinal) ||
+          extrairMensagemErro(responseData) ||
+          "A function respondeu, mas indicou falha ao gerar o checkout.";
+
+        throw new Error(mensagemErro);
+      }
+
+      if (!resultadoFinal?.checkoutUrl) {
         throw new Error(
-          responseData?.error ||
-            responseData?.message ||
-            "A function respondeu, mas não retornou a URL do checkout."
+          "A function respondeu com sucesso, mas não retornou a URL do checkout."
         );
       }
 
       setCheckoutStatus("success");
       setCheckoutMensagem(
-        "Checkout gerado com sucesso. Abrimos a página de pagamento em uma nova aba."
+        resultadoFinal.message ||
+          "Checkout gerado com sucesso. Abrimos a página de pagamento em uma nova aba."
       );
-      setCheckoutUrlGerada(responseData.checkoutUrl);
+      setCheckoutUrlGerada(resultadoFinal.checkoutUrl);
 
-      if (popup && !popup.closed) {
-        popup.location.href = responseData.checkoutUrl;
-      } else {
-        window.open(responseData.checkoutUrl, "_blank", "noopener,noreferrer");
-      }
+      window.open(resultadoFinal.checkoutUrl, "_blank", "noopener,noreferrer");
     } catch (erro) {
-      const mensagemErro = formatarMensagemErro(erro);
+      console.error("[Planos] Erro ao iniciar checkout:", erro);
 
       setCheckoutStatus("error");
-      setCheckoutMensagem(mensagemErro);
+      setCheckoutMensagem(extrairMensagemErro(erro));
       setCheckoutUrlGerada("");
-
-      if (popup && !popup.closed) {
-        popup.close();
-      }
     }
   }
 
@@ -266,7 +347,8 @@ function Planos() {
               </div>
 
               <h1 className="mt-5 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">
-                Cresça com mais acesso, mais exclusividade e mais chance de conversão
+                Cresça com mais acesso, mais exclusividade e mais chance de
+                conversão
               </h1>
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-200 sm:text-base">
@@ -282,9 +364,7 @@ function Planos() {
                     disabled={checkoutEmAndamento}
                     className="inline-flex items-center justify-center rounded-2xl bg-white px-5 py-3 text-sm font-bold text-slate-900 transition hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-70"
                   >
-                    {checkoutEmAndamento
-                      ? "Preparando checkout..."
-                      : "Quero fazer upgrade para PRO"}
+                    {getTextoBotaoPrincipal()}
                   </button>
                 ) : (
                   <div className="inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-bold text-white">
@@ -308,10 +388,13 @@ function Planos() {
                   <div className="font-semibold">
                     {checkoutStatus === "loading" && "Iniciando pagamento"}
                     {checkoutStatus === "success" && "Checkout liberado"}
-                    {checkoutStatus === "error" && "Não foi possível abrir o checkout"}
+                    {checkoutStatus === "error" &&
+                      "Não foi possível abrir o checkout"}
                   </div>
 
-                  <div className="mt-1 leading-6">{checkoutMensagem}</div>
+                  <div className="mt-1 whitespace-pre-wrap break-words leading-6">
+                    {checkoutMensagem}
+                  </div>
 
                   {checkoutStatus === "success" && checkoutUrlGerada && (
                     <div className="mt-3">
@@ -350,7 +433,8 @@ function Planos() {
                   Objetivo desta página
                 </p>
                 <p className="mt-2 text-sm font-medium text-white">
-                  Mostrar de forma clara por que o PRO melhora seu posicionamento comercial
+                  Mostrar de forma clara por que o PRO melhora seu posicionamento
+                  comercial
                 </p>
               </div>
 
@@ -359,10 +443,42 @@ function Planos() {
                   <p className="text-xs uppercase tracking-wide text-blue-100">
                     Condição comercial oficial
                   </p>
-                  <p className="mt-2 text-2xl font-bold text-white">R$ 990,00 à vista</p>
-                  <p className="mt-1 text-sm text-slate-200">
-                    ou 12x de R$ 99,00 no plano anual PRO
-                  </p>
+
+                  <div className="mt-3 space-y-3">
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 transition hover:bg-white/10">
+                      <input
+                        type="radio"
+                        name="formaPagamento"
+                        checked={formaPagamentoSelecionada === "avista"}
+                        onChange={() => setFormaPagamentoSelecionada("avista")}
+                        className="mt-1"
+                      />
+                      <div>
+                        <p className="text-base font-bold text-white">À vista</p>
+                        <p className="text-sm text-slate-200">
+                          R$ 990,00 no plano anual PRO
+                        </p>
+                      </div>
+                    </label>
+
+                    <label className="flex cursor-pointer items-start gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 transition hover:bg-white/10">
+                      <input
+                        type="radio"
+                        name="formaPagamento"
+                        checked={formaPagamentoSelecionada === "parcelado12x"}
+                        onChange={() => setFormaPagamentoSelecionada("parcelado12x")}
+                        className="mt-1"
+                      />
+                      <div>
+                        <p className="text-base font-bold text-white">
+                          Parcelado no cartão
+                        </p>
+                        <p className="text-sm text-slate-200">
+                          12x de R$ 99,00 no plano anual PRO
+                        </p>
+                      </div>
+                    </label>
+                  </div>
                 </div>
               )}
             </div>
@@ -498,18 +614,36 @@ function Planos() {
                 Por que o PRO converte melhor?
               </p>
               <p className="mt-2 text-sm leading-7 text-slate-200">
-                Porque amplia acesso, aumenta exclusividade e melhora a capacidade
-                de decisão comercial. Na prática, isso coloca o corretor em melhor
-                posição para agir antes da concorrência.
+                Porque amplia acesso, aumenta exclusividade e melhora a
+                capacidade de decisão comercial. Na prática, isso coloca o
+                corretor em melhor posição para agir antes da concorrência.
               </p>
             </div>
 
             <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <p className="text-sm font-semibold text-slate-500">Assinatura anual</p>
-              <p className="mt-2 text-3xl font-bold text-slate-900">R$ 990,00</p>
-              <p className="mt-2 text-sm text-slate-600">
-                Também disponível em 12x de R$ 99,00
+              <p className="text-sm font-semibold text-slate-500">
+                Assinatura anual
               </p>
+
+              {formaPagamentoSelecionada === "avista" ? (
+                <>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    R$ 990,00
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Pagamento à vista no plano anual PRO
+                  </p>
+                </>
+              ) : (
+                <>
+                  <p className="mt-2 text-3xl font-bold text-slate-900">
+                    12x de R$ 99,00
+                  </p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Parcelamento no cartão no plano anual PRO
+                  </p>
+                </>
+              )}
             </div>
 
             <div className="mt-6">
@@ -528,9 +662,7 @@ function Planos() {
                   disabled={checkoutEmAndamento}
                   className="inline-flex w-full items-center justify-center rounded-2xl bg-blue-600 px-5 py-4 text-sm font-bold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-70"
                 >
-                  {checkoutEmAndamento
-                    ? "Preparando checkout do PRO..."
-                    : "👑 Quero ativar o PRO"}
+                  {getTextoBotaoPrincipal()}
                 </button>
               )}
             </div>
@@ -568,7 +700,9 @@ function Planos() {
                   <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-blue-600">
                     Pro
                   </p>
-                  <p className="mt-1 text-sm font-medium text-slate-800">{item.pro}</p>
+                  <p className="mt-1 text-sm font-medium text-slate-800">
+                    {item.pro}
+                  </p>
                 </div>
               ))}
             </div>
@@ -613,9 +747,7 @@ function Planos() {
                 disabled={checkoutEmAndamento}
                 className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {checkoutEmAndamento
-                  ? "Gerando checkout..."
-                  : "👑 Ativar agora o PRO"}
+                {getTextoBotaoResumo()}
               </button>
             ) : (
               <div className="rounded-2xl bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700">
