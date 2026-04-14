@@ -1,112 +1,31 @@
-import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+} from "react";
 import { httpsCallable } from "firebase/functions";
 import { doc, getDoc } from "firebase/firestore";
 import { functions, obterExtratoFinanceiroCall, db } from "../firebase";
 import { useNavigate } from "react-router-dom";
 
-type FirestoreDateLike =
-  | { toDate?: () => Date; toMillis?: () => number }
-  | { seconds?: number; nanoseconds?: number }
-  | { _seconds?: number; _nanoseconds?: number }
-  | null
-  | undefined;
+import DashboardHero from "../components/dashboard/DashboardHero";
+import DashboardKPIs from "../components/dashboard/DashboardKPIs";
+import LeadCard from "../components/dashboard/LeadCard";
+import LeadFilters from "../components/dashboard/LeadFilters";
+import UpgradeBanner from "../components/dashboard/UpgradeBanner";
 
-type Lead = {
-  id: string;
-  nome?: string;
-  telefone?: string;
-  status?: string;
-  categoria?: string;
-  categoriaValor?: string;
-  cidade?: string;
-  bairro?: string;
-  tipo?: string;
-  tipoInteresse?: string;
-  tipoImovel?: string;
-  objetivo?: string;
-  nivelLead?: string;
-  score?: number;
-  precoLead?: number;
-  valor?: number | string;
-  origem?: string;
-  prazo?: string;
-  urgencia?: string;
-  orcamento?: string;
-
-  profissao?: string;
-  renda?: string | number;
-  observacoes?: string;
-  motivoMudanca?: string;
-  situacaoAtual?: string;
-  detalhesInteresse?: string;
-  quartos?: string | number;
-  entradaDisponivel?: string;
-  financiamentoAprovado?: string;
-  fgts?: string;
-  preferenciaImovel?: string;
-  mensagemCliente?: string;
-
-  corretorId?: string | null;
-  corretorAtual?: string | null;
-
-  createdAt?: FirestoreDateLike;
-  criadoEm?: FirestoreDateLike;
-  updatedAt?: FirestoreDateLike;
-  atualizadoEm?: FirestoreDateLike;
-  assumedAt?: FirestoreDateLike | null;
-  expiresAt?: FirestoreDateLike | null;
-  lockUntil?: FirestoreDateLike | null;
-
-  enqueteEnviada?: boolean;
-  enqueteEnviadaAt?: FirestoreDateLike;
-  enqueteRespondida?: boolean;
-  enqueteResposta?: "SIM" | "NAO" | null;
-  tentativasEnquete?: number;
-  ultimaTentativaEnqueteAt?: FirestoreDateLike;
-};
-
-type Corretor = {
-  id: string;
-  nome: string;
-  email?: string;
-  tipo?: string;
-  tipoUsuario?: string;
-  ativo?: boolean;
-  plano?: "BASIC" | "PRO" | "ADMIN" | string;
-};
-
-type EnviarEnqueteResponse = {
-  success?: boolean;
-  telefone?: string;
-  mensagem?: string;
-  leadId?: string;
-  status?: string;
-  error?: string;
-};
-
-type WebhookRespostaResponse = {
-  success?: boolean;
-  novoStatus?: string;
-  tentativas?: number;
-  error?: string;
-};
-
-type Transacao = {
-  id?: string;
-  tipo?: "credito" | "debito" | string;
-  valor?: number;
-  descricao?: string;
-  criadoEm?: FirestoreDateLike;
-  saldoAntes?: number;
-  saldoDepois?: number;
-};
-
-type ExtratoFinanceiro = {
-  saldoAtual: number;
-  totalCreditado: number;
-  totalDebitado: number;
-  transacoes: Transacao[];
-};
+import {
+  type Lead,
+  type Corretor,
+  type ExtratoFinanceiro,
+  type EnviarEnqueteResponse,
+  type WebhookRespostaResponse,
+  formatDateTime,
+  formatMoeda,
+  getPlano,
+} from "../components/dashboard/dashboardUtils";
 
 const URL_ENVIAR_ENQUETE =
   "https://us-central1-imoconnect-9d71c.cloudfunctions.net/enviarEnqueteLead";
@@ -114,610 +33,49 @@ const URL_ENVIAR_ENQUETE =
 const URL_WEBHOOK_RESPONDER =
   "https://us-central1-imoconnect-9d71c.cloudfunctions.net/webhookResponderEnquete";
 
-function getDateFromFirestore(value?: FirestoreDateLike): Date | null {
-  if (!value) return null;
-
-  if (typeof (value as any).toDate === "function") {
-    return (value as any).toDate();
-  }
-
-  if (typeof (value as any).seconds === "number") {
-    return new Date((value as any).seconds * 1000);
-  }
-
-  if (typeof (value as any)._seconds === "number") {
-    return new Date((value as any)._seconds * 1000);
-  }
-
-  return null;
-}
-
-function getLeadCreatedDate(lead: Lead): Date | null {
-  return getDateFromFirestore(lead.createdAt) || getDateFromFirestore(lead.criadoEm) || null;
-}
-
-function formatDateTime(value?: FirestoreDateLike): string {
-  const date = getDateFromFirestore(value);
-  if (!date) return "—";
-  return date.toLocaleString("pt-BR");
-}
-
-function formatLeadCreatedDate(lead: Lead): string {
-  const date = getLeadCreatedDate(lead);
-  if (!date) return "—";
-  return date.toLocaleString("pt-BR");
-}
-
-function formatTimeAgoFromLead(lead: Lead): string {
-  const date = getLeadCreatedDate(lead);
-  if (!date) return "—";
-
-  const now = Date.now();
-  const time = date.getTime();
-  const diffMs = now - time;
-
-  const minutes = Math.floor(diffMs / 60000);
-  const hours = Math.floor(minutes / 60);
-  const days = Math.floor(hours / 24);
-
-  if (minutes < 1) return "agora";
-  if (minutes < 60) return `${minutes} min atrás`;
-  if (hours < 24) return `${hours} h atrás`;
-  return `${days} d atrás`;
-}
-
-function formatCountdown(value?: FirestoreDateLike): string {
-  const date = getDateFromFirestore(value);
-  if (!date) return "—";
-
-  const now = Date.now();
-  const time = date.getTime();
-  const diffMs = time - now;
-
-  if (diffMs <= 0) return "Expirado";
-
-  const hours = Math.floor(diffMs / 3600000);
-  const minutes = Math.floor((diffMs % 3600000) / 60000);
-
-  return `${hours}h ${minutes}m`;
-}
-
-function formatMoeda(valor?: number | string) {
-  if (valor === undefined || valor === null || valor === "") return "—";
-
-  const numero =
-    typeof valor === "number"
-      ? valor
-      : Number(String(valor).replace(/[^\d.,-]/g, "").replace(",", "."));
-
-  if (Number.isNaN(numero)) return String(valor);
-
-  return numero.toLocaleString("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  });
-}
-
-function mascararNome(nome?: string) {
-  if (!nome) return "—";
-
-  const partes = nome.trim().split(" ").filter(Boolean);
-
-  if (partes.length === 0) return "—";
-
-  return partes
-    .map((parte) => {
-      if (parte.length <= 2) return `${parte[0] || ""}*`;
-      if (parte.length <= 4) return `${parte.slice(0, 2)}**`;
-      return `${parte.slice(0, 3)}*****`;
-    })
-    .join(" ");
-}
-
-function mascararTelefone(telefone?: string | number) {
-  if (!telefone && telefone !== 0) return "—";
-
-  const t = String(telefone).replace(/\D/g, "");
-  if (!t) return "—";
-
-  if (t.length <= 5) return `${t.slice(0, 2)}***`;
-  return `${t.slice(0, 5)}*****`;
-}
-
-function mascararTexto(texto?: string | number) {
-  if (texto === undefined || texto === null || texto === "") return "—";
-  return "***************";
-}
-
-function getPlano(corretor: Corretor | null) {
-  return (corretor?.plano || "BASIC").toString().toUpperCase();
-}
-
-function isAdmin(corretor: Corretor | null) {
-  return (corretor?.tipoUsuario || corretor?.tipo || "").toString().toLowerCase() === "admin";
-}
-
-function isLeadOwner(lead: Lead, corretor: Corretor | null) {
-  if (!corretor?.id) return false;
-  return lead.corretorAtual === corretor.id || lead.corretorId === corretor.id;
-}
-
-function podeVerCompleto(lead: Lead, corretor: Corretor | null) {
-  return isAdmin(corretor) || isLeadOwner(lead, corretor);
-}
-
-function getTipoInteresse(lead: Lead) {
-  return lead.tipo || lead.tipoInteresse || lead.objetivo || "—";
-}
-
-function getFaixaValor(lead: Lead) {
-  if (lead.orcamento) return lead.orcamento;
-  if (lead.categoriaValor) return lead.categoriaValor;
-  if (lead.valor !== undefined && lead.valor !== null && lead.valor !== "") {
-    return formatMoeda(lead.valor);
-  }
-  return "—";
-}
-
-function getStatusLabel(status?: string) {
-  switch (status) {
-    case "disponivel":
-      return "Disponível";
-    case "aguardando_enquete":
-      return "Aguardando enquete";
-    case "sem_interesse":
-      return "Sem interesse";
-    case "em_atendimento":
-      return "Em atendimento";
-    case "quarentena":
-      return "Quarentena";
-    default:
-      return status || "Sem status";
-  }
-}
-
-function getStatusStyles(status?: string) {
-  switch (status) {
-    case "disponivel":
-      return {
-        bg: "#ecfdf5",
-        color: "#047857",
-        border: "1px solid #a7f3d0",
-      };
-    case "aguardando_enquete":
-      return {
-        bg: "#fffbeb",
-        color: "#b45309",
-        border: "1px solid #fcd34d",
-      };
-    case "sem_interesse":
-      return {
-        bg: "#fef2f2",
-        color: "#b91c1c",
-        border: "1px solid #fecaca",
-      };
-    case "em_atendimento":
-      return {
-        bg: "#eff6ff",
-        color: "#1d4ed8",
-        border: "1px solid #bfdbfe",
-      };
-    case "quarentena":
-      return {
-        bg: "#f5f3ff",
-        color: "#7c3aed",
-        border: "1px solid #ddd6fe",
-      };
-    default:
-      return {
-        bg: "#f8fafc",
-        color: "#475569",
-        border: "1px solid #e2e8f0",
-      };
-  }
-}
-
-function getNivelStyles(nivel?: string) {
-  switch ((nivel || "").toLowerCase()) {
-    case "oportunidade":
-      return {
-        label: "Lead em Oportunidade",
-        bg: "#eff6ff",
-        color: "#1d4ed8",
-        border: "1px solid #bfdbfe",
-      };
-
-    case "qualificado":
-      return {
-        label: "Lead Quente",
-        bg: "#fffbeb",
-        color: "#b45309",
-        border: "1px solid #fcd34d",
-      };
-
-    case "prioritario":
-    case "prioritário":
-      return {
-        label: "Lead Pronto",
-        bg: "#fef2f2",
-        color: "#b91c1c",
-        border: "1px solid #fecaca",
-      };
-
-    default:
-      return {
-        label: "Lead",
-        bg: "#f8fafc",
-        color: "#475569",
-        border: "1px solid #e2e8f0",
-      };
-  }
-}
-
-function getPrecoOriginalPorNivel(nivel?: string): number | null {
-  switch ((nivel || "").toLowerCase()) {
-    case "oportunidade":
-      return 10;
-    case "qualificado":
-      return 25;
-    case "prioritario":
-    case "prioritário":
-      return 50;
-    default:
-      return null;
-  }
-}
-
 function styles() {
   return {
     page: {
       minHeight: "100vh",
       background:
         "linear-gradient(180deg, #eaf2ff 0%, #f8fafc 220px, #f8fafc 100%)",
-      padding: "24px 20px 40px 20px",
+      padding: "24px 40px 44px 40px",
       fontFamily:
         'Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      boxSizing: "border-box",
     } as CSSProperties,
+
     wrapper: {
-      maxWidth: 1320,
+      maxWidth: 1180,
       margin: "0 auto",
+      width: "100%",
     } as CSSProperties,
-    hero: {
-      background:
-        "linear-gradient(135deg, #0f172a 0%, #1e3a8a 55%, #2563eb 100%)",
-      color: "#ffffff",
-      borderRadius: 24,
-      padding: 28,
-      boxShadow: "0 20px 50px rgba(15, 23, 42, 0.22)",
-      marginBottom: 22,
-      overflow: "hidden",
-      position: "relative",
-    } as CSSProperties,
-    heroGlow: {
-      position: "absolute",
-      width: 220,
-      height: 220,
-      borderRadius: "50%",
-      background: "rgba(255,255,255,0.10)",
-      top: -60,
-      right: -30,
-      filter: "blur(8px)",
-    } as CSSProperties,
-    heroGrid: {
-      display: "flex",
-      justifyContent: "space-between",
-      alignItems: "flex-start",
-      gap: 18,
-      flexWrap: "wrap",
-      position: "relative",
-      zIndex: 2,
-    } as CSSProperties,
-    heroTitle: {
-      margin: 0,
-      fontSize: 30,
-      lineHeight: 1.1,
-      fontWeight: 800,
-      letterSpacing: "-0.02em",
-    } as CSSProperties,
-    heroSubtitle: {
-      margin: "12px 0 0 0",
-      color: "rgba(255,255,255,0.82)",
-      maxWidth: 640,
-      lineHeight: 1.6,
-      fontSize: 15,
-    } as CSSProperties,
-    heroMetaRow: {
-      display: "flex",
-      gap: 10,
-      flexWrap: "wrap",
-      marginTop: 18,
-    } as CSSProperties,
-    heroTag: {
-      background: "rgba(255,255,255,0.14)",
-      border: "1px solid rgba(255,255,255,0.18)",
-      color: "#ffffff",
-      padding: "8px 12px",
-      borderRadius: 999,
-      fontSize: 13,
-      fontWeight: 600,
-      backdropFilter: "blur(8px)",
-    } as CSSProperties,
-    heroActions: {
-      display: "flex",
-      gap: 10,
-      flexWrap: "wrap",
-      alignItems: "center",
-    } as CSSProperties,
-    primaryButton: {
-      padding: "11px 16px",
-      backgroundColor: "#ffffff",
-      color: "#0f172a",
-      border: "none",
-      borderRadius: 12,
-      cursor: "pointer",
-      fontWeight: 700,
-      fontSize: 14,
-      boxShadow: "0 10px 24px rgba(15, 23, 42, 0.12)",
-    } as CSSProperties,
-    secondaryHeroButton: {
-      padding: "11px 16px",
-      backgroundColor: "rgba(255,255,255,0.14)",
-      color: "#ffffff",
-      border: "1px solid rgba(255,255,255,0.18)",
-      borderRadius: 12,
-      cursor: "pointer",
-      fontWeight: 700,
-      fontSize: 14,
-      backdropFilter: "blur(8px)",
-    } as CSSProperties,
-    dangerHeroButton: {
-      padding: "11px 16px",
-      backgroundColor: "rgba(239,68,68,0.18)",
-      color: "#ffffff",
-      border: "1px solid rgba(254,202,202,0.28)",
-      borderRadius: 12,
-      cursor: "pointer",
-      fontWeight: 700,
-      fontSize: 14,
-      backdropFilter: "blur(8px)",
-    } as CSSProperties,
-    kpiGrid: {
-      display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-      gap: 14,
-      marginBottom: 22,
-    } as CSSProperties,
-    kpiCard: {
-      backgroundColor: "#ffffff",
-      borderRadius: 18,
-      padding: 18,
-      border: "1px solid #e2e8f0",
-      boxShadow: "0 10px 28px rgba(15, 23, 42, 0.05)",
-    } as CSSProperties,
-    kpiLabel: {
-      fontSize: 13,
-      color: "#64748b",
-      marginBottom: 8,
-      fontWeight: 600,
-    } as CSSProperties,
-    kpiValue: {
-      fontSize: 28,
-      fontWeight: 800,
-      color: "#0f172a",
-      lineHeight: 1.1,
-    } as CSSProperties,
-    kpiNote: {
-      marginTop: 8,
-      color: "#475569",
-      fontSize: 13,
-    } as CSSProperties,
+
     sectionHeader: {
       display: "flex",
       justifyContent: "space-between",
       alignItems: "center",
       gap: 12,
       flexWrap: "wrap",
-      marginBottom: 16,
+      marginBottom: 20,
     } as CSSProperties,
+
     sectionTitle: {
       margin: 0,
-      fontSize: 22,
+      fontSize: 26,
       color: "#0f172a",
-      fontWeight: 800,
-      letterSpacing: "-0.02em",
+      fontWeight: 900,
+      letterSpacing: "-0.03em",
+      lineHeight: 1.05,
     } as CSSProperties,
-    sectionDescription: {
-      margin: "6px 0 0 0",
-      color: "#64748b",
-      fontSize: 14,
-    } as CSSProperties,
+
     leadGrid: {
       display: "grid",
-      gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
-      gap: 18,
+      gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
+      gap: 22,
+      alignItems: "start",
     } as CSSProperties,
-    leadCard: {
-      backgroundColor: "#ffffff",
-      borderRadius: 22,
-      padding: 20,
-      border: "1px solid #e2e8f0",
-      boxShadow: "0 14px 34px rgba(15, 23, 42, 0.06)",
-      display: "flex",
-      flexDirection: "column",
-      gap: 16,
-    } as CSSProperties,
-    leadHeader: {
-      display: "flex",
-      justifyContent: "space-between",
-      gap: 12,
-      alignItems: "flex-start",
-      flexWrap: "wrap",
-    } as CSSProperties,
-    leadName: {
-      margin: 0,
-      color: "#0f172a",
-      fontSize: 20,
-      fontWeight: 800,
-      letterSpacing: "-0.02em",
-    } as CSSProperties,
-    leadPhone: {
-      margin: "6px 0 0 0",
-      color: "#64748b",
-      fontSize: 14,
-    } as CSSProperties,
-    badgeRow: {
-      display: "flex",
-      gap: 8,
-      flexWrap: "wrap",
-      justifyContent: "flex-end",
-      alignItems: "center",
-    } as CSSProperties,
-    badge: {
-      padding: "7px 11px",
-      borderRadius: 999,
-      fontSize: 12,
-      fontWeight: 700,
-      whiteSpace: "nowrap",
-    } as CSSProperties,
-    priceCard: {
-      background: "linear-gradient(135deg, #eff6ff 0%, #ffffff 100%)",
-      border: "1px solid #dbeafe",
-      borderRadius: 16,
-      padding: 14,
-      display: "flex",
-      justifyContent: "space-between",
-      gap: 14,
-      alignItems: "center",
-      flexWrap: "wrap",
-    } as CSSProperties,
-    priceLabel: {
-      color: "#64748b",
-      fontSize: 13,
-      fontWeight: 600,
-      marginBottom: 4,
-    } as CSSProperties,
-    priceValue: {
-      color: "#0f172a",
-      fontSize: 24,
-      fontWeight: 800,
-      lineHeight: 1.1,
-    } as CSSProperties,
-    priceSub: {
-      color: "#475569",
-      fontSize: 13,
-    } as CSSProperties,
-    oldPrice: {
-      color: "#94a3b8",
-      fontSize: 16,
-      fontWeight: 700,
-      textDecoration: "line-through",
-      marginBottom: 4,
-    } as CSSProperties,
-    unlockBox: {
-      backgroundColor: "#fff7ed",
-      border: "1px solid #fdba74",
-      color: "#9a3412",
-      borderRadius: 14,
-      padding: "10px 12px",
-      fontSize: 13,
-      fontWeight: 700,
-    } as CSSProperties,
-    infoSection: {
-      border: "1px solid #e2e8f0",
-      borderRadius: 16,
-      padding: 14,
-      backgroundColor: "#fcfdff",
-    } as CSSProperties,
-    infoTitle: {
-      margin: "0 0 12px 0",
-      color: "#0f172a",
-      fontSize: 15,
-      fontWeight: 800,
-    } as CSSProperties,
-    infoGrid: {
-      display: "grid",
-      gridTemplateColumns: "1fr 1fr",
-      gap: 10,
-    } as CSSProperties,
-    infoItem: {
-      backgroundColor: "#ffffff",
-      border: "1px solid #eef2f7",
-      borderRadius: 12,
-      padding: "10px 12px",
-    } as CSSProperties,
-    infoLabel: {
-      fontSize: 12,
-      color: "#64748b",
-      marginBottom: 4,
-      fontWeight: 700,
-    } as CSSProperties,
-    infoValue: {
-      fontSize: 14,
-      color: "#0f172a",
-      fontWeight: 600,
-      lineHeight: 1.4,
-      wordBreak: "break-word",
-    } as CSSProperties,
-    actionsRow: {
-      display: "flex",
-      gap: 10,
-      flexWrap: "wrap",
-      marginTop: 2,
-    } as CSSProperties,
-    actionPrimary: {
-      padding: "12px 14px",
-      backgroundColor: "#2563eb",
-      color: "#ffffff",
-      border: "none",
-      borderRadius: 12,
-      cursor: "pointer",
-      fontWeight: 700,
-      fontSize: 14,
-      boxShadow: "0 10px 20px rgba(37,99,235,0.18)",
-    } as CSSProperties,
-    actionWarning: {
-      padding: "12px 14px",
-      backgroundColor: "#f59e0b",
-      color: "#ffffff",
-      border: "none",
-      borderRadius: 12,
-      cursor: "pointer",
-      fontWeight: 700,
-      fontSize: 14,
-      boxShadow: "0 10px 20px rgba(245,158,11,0.18)",
-    } as CSSProperties,
-    actionSuccess: {
-      padding: "12px 14px",
-      backgroundColor: "#10b981",
-      color: "#ffffff",
-      border: "none",
-      borderRadius: 12,
-      cursor: "pointer",
-      fontWeight: 700,
-      fontSize: 14,
-      boxShadow: "0 10px 20px rgba(16,185,129,0.18)",
-    } as CSSProperties,
-    actionDanger: {
-      padding: "12px 14px",
-      backgroundColor: "#ef4444",
-      color: "#ffffff",
-      border: "none",
-      borderRadius: 12,
-      cursor: "pointer",
-      fontWeight: 700,
-      fontSize: 14,
-      boxShadow: "0 10px 20px rgba(239,68,68,0.16)",
-    } as CSSProperties,
-    actionDisabled: {
-      padding: "12px 14px",
-      backgroundColor: "#e2e8f0",
-      color: "#64748b",
-      border: "none",
-      borderRadius: 12,
-      cursor: "not-allowed",
-      fontWeight: 700,
-      fontSize: 14,
-    } as CSSProperties,
+
     emptyState: {
       backgroundColor: "#ffffff",
       borderRadius: 20,
@@ -727,6 +85,7 @@ function styles() {
       textAlign: "center",
       color: "#475569",
     } as CSSProperties,
+
     overlay: {
       position: "fixed",
       inset: 0,
@@ -738,6 +97,7 @@ function styles() {
       padding: 20,
       backdropFilter: "blur(4px)",
     } as CSSProperties,
+
     modal: {
       backgroundColor: "#ffffff",
       width: "100%",
@@ -749,6 +109,7 @@ function styles() {
       boxShadow: "0 24px 60px rgba(15, 23, 42, 0.25)",
       border: "1px solid #e2e8f0",
     } as CSSProperties,
+
     modalTitle: {
       marginTop: 0,
       marginBottom: 16,
@@ -757,12 +118,14 @@ function styles() {
       fontWeight: 800,
       letterSpacing: "-0.02em",
     } as CSSProperties,
+
     modalFooter: {
       marginTop: 20,
       display: "flex",
       gap: 10,
       flexWrap: "wrap",
     } as CSSProperties,
+
     input: {
       width: "100%",
       padding: 12,
@@ -774,6 +137,7 @@ function styles() {
       outline: "none",
       boxSizing: "border-box",
     } as CSSProperties,
+
     textarea: {
       width: "100%",
       padding: 12,
@@ -785,17 +149,333 @@ function styles() {
       outline: "none",
       boxSizing: "border-box",
     } as CSSProperties,
+
+    infoSection: {
+      border: "1px solid #e2e8f0",
+      borderRadius: 16,
+      padding: 14,
+      backgroundColor: "#fcfdff",
+    } as CSSProperties,
+
+    infoTitle: {
+      margin: "0 0 12px 0",
+      color: "#0f172a",
+      fontSize: 15,
+      fontWeight: 800,
+    } as CSSProperties,
+
+    infoGrid: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 10,
+    } as CSSProperties,
+
+    infoItem: {
+      backgroundColor: "#ffffff",
+      border: "1px solid #eef2f7",
+      borderRadius: 12,
+      padding: "10px 12px",
+    } as CSSProperties,
+
+    infoLabel: {
+      fontSize: 12,
+      color: "#64748b",
+      marginBottom: 4,
+      fontWeight: 700,
+    } as CSSProperties,
+
+    infoValue: {
+      fontSize: 14,
+      color: "#0f172a",
+      fontWeight: 600,
+      lineHeight: 1.4,
+      wordBreak: "break-word",
+    } as CSSProperties,
+
+    kpiCard: {
+      backgroundColor: "#ffffff",
+      borderRadius: 18,
+      padding: 18,
+      border: "1px solid #e2e8f0",
+      boxShadow: "0 10px 28px rgba(15, 23, 42, 0.05)",
+    } as CSSProperties,
+
+    kpiLabel: {
+      fontSize: 13,
+      color: "#64748b",
+      marginBottom: 8,
+      fontWeight: 600,
+    } as CSSProperties,
+
+    kpiValue: {
+      fontSize: 28,
+      fontWeight: 800,
+      color: "#0f172a",
+      lineHeight: 1.1,
+    } as CSSProperties,
+
+    actionPrimary: {
+      padding: "12px 14px",
+      backgroundColor: "#2563eb",
+      color: "#ffffff",
+      border: "none",
+      borderRadius: 12,
+      cursor: "pointer",
+      fontWeight: 700,
+      fontSize: 14,
+      boxShadow: "0 10px 20px rgba(37,99,235,0.18)",
+    } as CSSProperties,
+
+    actionSuccess: {
+      padding: "12px 14px",
+      backgroundColor: "#10b981",
+      color: "#ffffff",
+      border: "none",
+      borderRadius: 12,
+      cursor: "pointer",
+      fontWeight: 700,
+      fontSize: 14,
+      boxShadow: "0 10px 20px rgba(16,185,129,0.18)",
+    } as CSSProperties,
+
+    actionDisabled: {
+      padding: "12px 14px",
+      backgroundColor: "#e2e8f0",
+      color: "#64748b",
+      border: "none",
+      borderRadius: 12,
+      cursor: "not-allowed",
+      fontWeight: 700,
+      fontSize: 14,
+    } as CSSProperties,
+
+    upgradeModal: {
+      background:
+        "linear-gradient(180deg, #ffffff 0%, #f8fbff 62%, #eef6ff 100%)",
+      width: "100%",
+      maxWidth: 620,
+      borderRadius: 24,
+      padding: 22,
+      boxShadow: "0 28px 80px rgba(15, 23, 42, 0.28)",
+      border: "1px solid #dbeafe",
+      position: "relative",
+      overflow: "hidden",
+    } as CSSProperties,
+
+    upgradeBadge: {
+      display: "inline-flex",
+      alignItems: "center",
+      gap: 8,
+      padding: "6px 12px",
+      borderRadius: 999,
+      backgroundColor: "#dbeafe",
+      color: "#1d4ed8",
+      fontSize: 11,
+      fontWeight: 800,
+      marginBottom: 12,
+    } as CSSProperties,
+
+    upgradeText: {
+      color: "#475569",
+      lineHeight: 1.65,
+      fontSize: 14,
+      marginTop: 0,
+      marginBottom: 0,
+    } as CSSProperties,
+
+    upgradeGrid: {
+      display: "grid",
+      gridTemplateColumns: "1fr 1fr",
+      gap: 10,
+      marginTop: 16,
+    } as CSSProperties,
+
+    upgradeCard: {
+      backgroundColor: "#ffffff",
+      border: "1px solid #dbeafe",
+      borderRadius: 14,
+      padding: 12,
+      boxShadow: "0 8px 20px rgba(37,99,235,0.05)",
+      minHeight: 94,
+    } as CSSProperties,
+
+    upgradeCardTitle: {
+      margin: 0,
+      color: "#0f172a",
+      fontSize: 14,
+      fontWeight: 800,
+      lineHeight: 1.35,
+    } as CSSProperties,
+
+    upgradeCardText: {
+      margin: "5px 0 0 0",
+      color: "#475569",
+      fontSize: 12,
+      lineHeight: 1.5,
+    } as CSSProperties,
+
+    planoCard: {
+      marginTop: 18,
+      marginBottom: 18,
+      backgroundColor: "#ffffff",
+      border: "1px solid #dbeafe",
+      borderRadius: 20,
+      padding: 18,
+      boxShadow: "0 10px 28px rgba(37,99,235,0.06)",
+    } as CSSProperties,
+
+    planoLinha: {
+      display: "flex",
+      justifyContent: "space-between",
+      alignItems: "center",
+      gap: 12,
+      flexWrap: "wrap",
+    } as CSSProperties,
+
+    planoTag: {
+      display: "inline-flex",
+      alignItems: "center",
+      padding: "7px 12px",
+      borderRadius: 999,
+      backgroundColor: "#eff6ff",
+      color: "#1d4ed8",
+      fontSize: 12,
+      fontWeight: 800,
+    } as CSSProperties,
+
+    planoTitulo: {
+      margin: 0,
+      color: "#0f172a",
+      fontSize: 18,
+      fontWeight: 800,
+    } as CSSProperties,
+
+    planoTexto: {
+      margin: "6px 0 0 0",
+      color: "#475569",
+      fontSize: 14,
+      lineHeight: 1.65,
+    } as CSSProperties,
+
+    planoAviso: {
+      marginTop: 12,
+      padding: "12px 14px",
+      borderRadius: 14,
+      backgroundColor: "#f8fafc",
+      border: "1px solid #e2e8f0",
+      color: "#334155",
+      fontSize: 13,
+      lineHeight: 1.6,
+    } as CSSProperties,
+  };
+}
+
+function extrairMensagemErro(error: any): string {
+  return (
+    error?.message ||
+    error?.details ||
+    error?.data?.message ||
+    error?.data?.error ||
+    "Erro ao assumir lead."
+  );
+}
+
+function isErroLimitePlanoBasic(error: any, corretor: Corretor | null): boolean {
+  if (getPlano(corretor) !== "BASIC") return false;
+
+  const mensagem = extrairMensagemErro(error).toLowerCase();
+
+  return (
+    mensagem.includes("limite") ||
+    mensagem.includes("lead ativo") ||
+    mensagem.includes("1 lead") ||
+    mensagem.includes("upgrade") ||
+    mensagem.includes("plano") ||
+    mensagem.includes("basic") ||
+    mensagem.includes("básico")
+  );
+}
+
+function formatarTimestampData(valor: any): string {
+  if (!valor) return "—";
+
+  try {
+    if (typeof valor?.toDate === "function") {
+      return valor.toDate().toLocaleDateString("pt-BR");
+    }
+
+    if (typeof valor?.seconds === "number") {
+      return new Date(valor.seconds * 1000).toLocaleDateString("pt-BR");
+    }
+
+    const data = new Date(valor);
+    if (!Number.isNaN(data.getTime())) {
+      return data.toLocaleDateString("pt-BR");
+    }
+
+    return "—";
+  } catch {
+    return "—";
+  }
+}
+
+function calcularDiasRestantes(valor: any): number | null {
+  try {
+    let dataFinal: Date | null = null;
+
+    if (typeof valor?.toDate === "function") {
+      dataFinal = valor.toDate();
+    } else if (typeof valor?.seconds === "number") {
+      dataFinal = new Date(valor.seconds * 1000);
+    } else if (valor) {
+      const data = new Date(valor);
+      if (!Number.isNaN(data.getTime())) {
+        dataFinal = data;
+      }
+    }
+
+    if (!dataFinal) return null;
+
+    const agora = new Date();
+    const diferencaMs = dataFinal.getTime() - agora.getTime();
+    const dias = Math.ceil(diferencaMs / (1000 * 60 * 60 * 24));
+
+    return dias;
+  } catch {
+    return null;
+  }
+}
+
+function montarCorretorBase(usuarioLocal: any): Corretor {
+  return {
+    id: usuarioLocal?.id || "",
+    nome: usuarioLocal?.nome || "Usuário",
+    email: usuarioLocal?.email,
+    plano: usuarioLocal?.plano || "BASIC",
+    tipoUsuario: usuarioLocal?.tipoUsuario || "corretor",
+    tipo: usuarioLocal?.tipo,
+    ativo: usuarioLocal?.ativo,
   };
 }
 
 export default function Dashboard() {
   const css = styles();
+  const navigate = useNavigate();
 
   const [leads, setLeads] = useState<Lead[]>([]);
   const [loading, setLoading] = useState(true);
+  const [sincronizandoUsuario, setSincronizandoUsuario] = useState(false);
   const [corretor, setCorretor] = useState<Corretor | null>(null);
-  const [saldoAtual, setSaldoAtual] = useState<number | null>(null);
+  const [saldoAtual, setSaldoAtual] = useState<number>(0);
   const [processandoLeadId, setProcessandoLeadId] = useState<string | null>(null);
+
+  const [planoStatusAtual, setPlanoStatusAtual] = useState<string>("");
+  const [planoIniciadoEmAtual, setPlanoIniciadoEmAtual] = useState<any>(null);
+  const [planoExpiraEmAtual, setPlanoExpiraEmAtual] = useState<any>(null);
+
+  const [filtroBusca, setFiltroBusca] = useState("");
+  const [filtroStatus, setFiltroStatus] = useState("");
+  const [filtroNivel, setFiltroNivel] = useState("");
 
   const [modalEnqueteAberto, setModalEnqueteAberto] = useState(false);
   const [telefoneEnquete, setTelefoneEnquete] = useState("");
@@ -812,41 +492,42 @@ export default function Dashboard() {
   });
 
   const [modalUpgradeAberto, setModalUpgradeAberto] = useState(false);
+  const [mensagemUpgrade, setMensagemUpgrade] = useState(
+    "Você atingiu o limite operacional do seu plano BASIC."
+  );
 
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    async function carregarUsuarioReal() {
+  const sincronizarCorretor = useCallback(
+    async (forcarLoading = false) => {
       const stored = localStorage.getItem("corretor");
 
       if (!stored) {
         navigate("/login");
-        return;
+        return null;
       }
+
+      if (forcarLoading) {
+        setLoading(true);
+      }
+
+      setSincronizandoUsuario(true);
 
       try {
         const usuarioLocal = JSON.parse(stored);
 
         if (!usuarioLocal) {
           navigate("/login");
-          return;
+          return null;
         }
 
-        const usuarioBase: Corretor = {
-          id: usuarioLocal.id || "",
-          nome: usuarioLocal.nome || "Usuário",
-          email: usuarioLocal.email,
-          plano: usuarioLocal.plano || "BASIC",
-          tipoUsuario: usuarioLocal.tipoUsuario || "corretor",
-          tipo: usuarioLocal.tipo,
-          ativo: usuarioLocal.ativo,
-        };
+        const usuarioBase = montarCorretorBase(usuarioLocal);
 
         setCorretor(usuarioBase);
+        setPlanoStatusAtual(usuarioLocal.planoStatus || "");
+        setPlanoIniciadoEmAtual(usuarioLocal.planoIniciadoEm || null);
+        setPlanoExpiraEmAtual(usuarioLocal.planoExpiraEm || null);
 
         if (!usuarioBase.id) {
-          console.warn("Usuário local sem id. Mantendo dados locais.");
-          return;
+          return usuarioBase;
         }
 
         try {
@@ -861,27 +542,89 @@ export default function Dashboard() {
               nome: usuarioBanco.nome || usuarioBase.nome || "Usuário",
               email: usuarioBanco.email || usuarioBase.email,
               plano: usuarioBanco.plano || usuarioBase.plano || "BASIC",
-              tipoUsuario: usuarioBanco.tipoUsuario || usuarioBase.tipoUsuario || "corretor",
+              tipoUsuario:
+                usuarioBanco.tipoUsuario || usuarioBase.tipoUsuario || "corretor",
               tipo: usuarioBanco.tipo || usuarioBase.tipo,
               ativo: usuarioBanco.ativo,
             };
 
             setCorretor(usuarioCompleto);
-            localStorage.setItem("corretor", JSON.stringify(usuarioCompleto));
-          } else {
-            console.warn("Usuário não encontrado no Firestore. Mantendo dados locais.");
+            setPlanoStatusAtual(usuarioBanco.planoStatus || "");
+            setPlanoIniciadoEmAtual(usuarioBanco.planoIniciadoEm || null);
+            setPlanoExpiraEmAtual(usuarioBanco.planoExpiraEm || null);
+
+            localStorage.setItem(
+              "corretor",
+              JSON.stringify({
+                ...usuarioCompleto,
+                planoStatus: usuarioBanco.planoStatus || "",
+                planoIniciadoEm: usuarioBanco.planoIniciadoEm || null,
+                planoExpiraEm: usuarioBanco.planoExpiraEm || null,
+                planoOrigem: usuarioBanco.planoOrigem || null,
+                ultimoPagamentoPlanoEm: usuarioBanco.ultimoPagamentoPlanoEm || null,
+              })
+            );
+
+            return usuarioCompleto;
           }
         } catch (erroBanco) {
-          console.error("Erro ao buscar usuário no Firestore. Mantendo dados locais:", erroBanco);
+          console.error(
+            "Erro ao buscar usuário no Firestore. Mantendo dados locais:",
+            erroBanco
+          );
         }
+
+        return usuarioBase;
       } catch (error) {
         console.error("Erro ao ler usuário do localStorage:", error);
         navigate("/login");
+        return null;
+      } finally {
+        setSincronizandoUsuario(false);
+        if (forcarLoading) {
+          setLoading(false);
+        }
+      }
+    },
+    [navigate]
+  );
+
+  useEffect(() => {
+    sincronizarCorretor(true);
+  }, [sincronizarCorretor]);
+
+  useEffect(() => {
+    function sincronizarAoVoltarParaAba() {
+      sincronizarCorretor(false);
+    }
+
+    function handleVisibilityChange() {
+      if (document.visibilityState === "visible") {
+        sincronizarCorretor(false);
       }
     }
 
-    carregarUsuarioReal();
-  }, [navigate]);
+    function handleStorage(event: StorageEvent) {
+      if (event.key === "corretor") {
+        sincronizarCorretor(false);
+      }
+    }
+
+    const intervalo = window.setInterval(() => {
+      sincronizarCorretor(false);
+    }, 15000);
+
+    window.addEventListener("focus", sincronizarAoVoltarParaAba);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("storage", handleStorage);
+
+    return () => {
+      window.clearInterval(intervalo);
+      window.removeEventListener("focus", sincronizarAoVoltarParaAba);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("storage", handleStorage);
+    };
+  }, [sincronizarCorretor]);
 
   async function fetchLeads(corretorId: string) {
     try {
@@ -897,53 +640,6 @@ export default function Dashboard() {
       alert("Erro ao buscar leads. Veja o console.");
     } finally {
       setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (corretor?.id) {
-      fetchLeads(corretor.id);
-      buscarExtrato(false);
-    } else {
-      setLoading(false);
-    }
-  }, [corretor]);
-
-  async function assumirLead(leadId: string) {
-    try {
-      setProcessandoLeadId(leadId);
-
-      const assumirInteresse = httpsCallable(functions, "assumirInteresse");
-      await assumirInteresse({ leadId, corretorId: corretor?.id });
-
-      alert("Lead assumido com sucesso!");
-
-      if (corretor?.id) {
-        await fetchLeads(corretor.id);
-      }
-
-      await buscarExtrato(false);
-    } catch (error: any) {
-      alert("Erro ao assumir lead: " + error.message);
-    } finally {
-      setProcessandoLeadId(null);
-    }
-  }
-
-  async function adicionarSaldo() {
-    try {
-      if (!corretor?.id) return;
-
-      const adicionarCredito = httpsCallable(functions, "adicionarCredito");
-      const response: any = await adicionarCredito({
-        corretorId: corretor.id,
-        valor: 200,
-      });
-
-      alert(response.data.mensagem);
-      await buscarExtrato(false);
-    } catch (error: any) {
-      alert("Erro ao adicionar saldo: " + error.message);
     }
   }
 
@@ -973,7 +669,6 @@ export default function Dashboard() {
       }
     } catch (error: any) {
       console.error("Erro ao buscar extrato:", error);
-      setSaldoAtual(null);
 
       if (abrirModal) {
         alert("Erro ao abrir extrato. Veja o console.");
@@ -983,11 +678,75 @@ export default function Dashboard() {
     }
   }
 
+  useEffect(() => {
+    if (corretor?.id) {
+      fetchLeads(corretor.id);
+      buscarExtrato(false);
+    } else {
+      setLoading(false);
+    }
+  }, [corretor?.id]);
+
+  async function assumirLead(leadId: string) {
+    try {
+      setProcessandoLeadId(leadId);
+
+      const assumirInteresse = httpsCallable(functions, "assumirInteresse");
+      await assumirInteresse({ leadId, corretorId: corretor?.id });
+
+      alert("Lead assumido com sucesso!");
+
+      if (corretor?.id) {
+        await fetchLeads(corretor.id);
+        await buscarExtrato(false);
+        await sincronizarCorretor(false);
+      }
+    } catch (error: any) {
+      const mensagemErro = extrairMensagemErro(error);
+
+      if (isErroLimitePlanoBasic(error, corretor)) {
+        setMensagemUpgrade(
+          mensagemErro || "Você já atingiu o limite de 1 lead ativo no plano BASIC."
+        );
+        setModalUpgradeAberto(true);
+        return;
+      }
+
+      alert("Erro ao assumir lead: " + mensagemErro);
+    } finally {
+      setProcessandoLeadId(null);
+    }
+  }
+
+  async function adicionarSaldo() {
+    try {
+      if (!corretor?.id) return;
+
+      const adicionarCredito = httpsCallable(functions, "adicionarCredito");
+      const response: any = await adicionarCredito({
+        corretorId: corretor.id,
+        valor: 200,
+      });
+
+      alert(response.data.mensagem);
+      await buscarExtrato(false);
+      await sincronizarCorretor(false);
+    } catch (error: any) {
+      alert("Erro ao adicionar saldo: " + error.message);
+    }
+  }
+
   async function abrirExtrato() {
     await buscarExtrato(true);
   }
 
-  async function prepararEnquete(lead: Lead) {
+  async function prepararEnquetePorLeadId(leadId: string) {
+    const lead = leads.find((item) => item.id === leadId);
+    if (!lead) {
+      alert("Lead não encontrado.");
+      return;
+    }
+
     try {
       setProcessandoLeadId(lead.id);
 
@@ -1094,52 +853,79 @@ export default function Dashboard() {
     navigate("/login");
   }
 
-  function renderNome(lead: Lead) {
-    return podeVerCompleto(lead, corretor) ? lead.nome || "—" : mascararNome(lead.nome);
-  }
+  const leadsFiltrados = useMemo(() => {
+    return leads.filter((lead) => {
+      const busca = filtroBusca.trim().toLowerCase();
 
-  function renderTelefone(lead: Lead) {
-    return podeVerCompleto(lead, corretor)
-      ? String(lead.telefone || "—")
-      : mascararTelefone(lead.telefone);
-  }
+      const matchBusca =
+        !busca ||
+        (lead.nome || "").toLowerCase().includes(busca) ||
+        (lead.bairro || "").toLowerCase().includes(busca) ||
+        (lead.cidade || "").toLowerCase().includes(busca) ||
+        (lead.tipoInteresse || "").toLowerCase().includes(busca) ||
+        (lead.tipo || "").toLowerCase().includes(busca);
 
-  function renderCampoSensivel(lead: Lead, valor?: string | number) {
-    return podeVerCompleto(lead, corretor) ? (valor || "—") : mascararTexto(valor);
-  }
+      const matchStatus = !filtroStatus || lead.status === filtroStatus;
+      const matchNivel =
+        !filtroNivel ||
+        (lead.nivelLead || "").toLowerCase() === filtroNivel.toLowerCase();
 
-  function showCampoPro() {
-    return getPlano(corretor) === "PRO" || isAdmin(corretor);
-  }
+      return matchBusca && matchStatus && matchNivel;
+    });
+  }, [leads, filtroBusca, filtroStatus, filtroNivel]);
 
-  function isLeadBloqueadoParaBasic(lead: Lead) {
-    return (
-      getPlano(corretor) === "BASIC" &&
-      !isAdmin(corretor) &&
-      (lead.nivelLead || "").toLowerCase() !== "oportunidade"
-    );
-  }
+  const totalLeads = leadsFiltrados.length;
 
-  const metricas = useMemo(() => {
-    const disponiveis = leads.filter((lead) => lead.status === "disponivel").length;
-    const emAtendimento = leads.filter((lead) => lead.status === "em_atendimento").length;
-    const aguardandoEnquete = leads.filter(
-      (lead) => lead.status === "aguardando_enquete"
+  const leadsDisponiveis = useMemo(() => {
+    return leadsFiltrados.filter((lead) => lead.status === "disponivel").length;
+  }, [leadsFiltrados]);
+
+  const leadsQuentes = useMemo(() => {
+    return leadsFiltrados.filter(
+      (lead) =>
+        (lead.nivelLead || "").toLowerCase() === "qualificado" ||
+        (lead.nivelLead || "").toLowerCase() === "quente"
     ).length;
+  }, [leadsFiltrados]);
 
-    return {
-      disponiveis,
-      emAtendimento,
-      aguardandoEnquete,
-    };
-  }, [leads]);
+  const leadsProntos = useMemo(() => {
+    return leadsFiltrados.filter(
+      (lead) =>
+        (lead.nivelLead || "").toLowerCase() === "prioritario" ||
+        (lead.nivelLead || "").toLowerCase() === "prioritário" ||
+        (lead.nivelLead || "").toLowerCase() === "pronto"
+    ).length;
+  }, [leadsFiltrados]);
+
+  const economiaTotalPro = useMemo(() => {
+    return leadsFiltrados.reduce((acc, lead) => {
+      const nivel = (lead.nivelLead || "").toLowerCase();
+
+      if (nivel === "oportunidade") return acc + 3;
+      if (nivel === "qualificado" || nivel === "quente") return acc + 10;
+      if (nivel === "prioritario" || nivel === "prioritário" || nivel === "pronto") {
+        return acc + 20;
+      }
+
+      return acc;
+    }, 0);
+  }, [leadsFiltrados]);
+
+  const diasRestantesPlano = useMemo(() => {
+    return calcularDiasRestantes(planoExpiraEmAtual);
+  }, [planoExpiraEmAtual]);
+
+  const mostrarCardPlanoPro =
+    (corretor?.plano || "BASIC").toUpperCase() === "PRO" && !!planoExpiraEmAtual;
 
   if (loading) {
     return (
       <div style={css.page}>
         <div style={css.wrapper}>
           <div style={css.emptyState}>
-            <p style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>Carregando leads...</p>
+            <p style={{ margin: 0, fontSize: 16, fontWeight: 600 }}>
+              Carregando leads...
+            </p>
           </div>
         </div>
       </div>
@@ -1149,83 +935,132 @@ export default function Dashboard() {
   return (
     <div style={css.page}>
       <div style={css.wrapper}>
-        <section style={css.hero}>
-          <div style={css.heroGlow} />
-          <div style={css.heroGrid}>
-            <div>
-              <h1 style={css.heroTitle}>ImoConnect • Dashboard Comercial</h1>
-              <p style={css.heroSubtitle}>
-                Painel de operação de leads com visão comercial, controle financeiro e
-                acompanhamento de enquete. Tudo centralizado em uma experiência mais
-                profissional.
-              </p>
+        <DashboardHero
+          corretor={corretor}
+          onAdicionarSaldo={adicionarSaldo}
+          onAbrirMeusLeads={() => navigate("/meus-leads")}
+          onAbrirExtrato={abrirExtrato}
+          onLogout={handleLogout}
+        />
 
-              {corretor && (
-                <div style={css.heroMetaRow}>
-                  <span style={css.heroTag}>Corretor: {corretor.nome}</span>
-                  <span style={css.heroTag}>Plano: {getPlano(corretor)}</span>
-                  <span style={css.heroTag}>
-                    Perfil: {isAdmin(corretor) ? "ADMIN" : "CORRETOR"}
-                  </span>
+        {sincronizandoUsuario && (
+          <div
+            style={{
+              marginBottom: 16,
+              padding: "12px 14px",
+              borderRadius: 14,
+              border: "1px solid #dbeafe",
+              backgroundColor: "#eff6ff",
+              color: "#1d4ed8",
+              fontSize: 13,
+              fontWeight: 700,
+            }}
+          >
+            Atualizando informações da sua conta...
+          </div>
+        )}
+
+        {mostrarCardPlanoPro && (
+          <div style={css.planoCard}>
+            <div style={css.planoLinha}>
+              <div>
+                <div style={css.planoTag}>Plano PRO anual</div>
+                <h3 style={css.planoTitulo}>Seu plano premium está ativo</h3>
+                <p style={css.planoTexto}>
+                  Vigência de 12 meses com benefício operacional ampliado dentro da plataforma.
+                </p>
+              </div>
+
+              <button
+                onClick={() => navigate("/planos")}
+                style={css.actionPrimary}
+              >
+                Ver detalhes do plano
+              </button>
+            </div>
+
+            <div
+              style={{
+                marginTop: 14,
+                display: "grid",
+                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+                gap: 12,
+              }}
+            >
+              <div style={css.infoItem}>
+                <div style={css.infoLabel}>Status do plano</div>
+                <div style={css.infoValue}>{planoStatusAtual || "ativo"}</div>
+              </div>
+
+              <div style={css.infoItem}>
+                <div style={css.infoLabel}>Início da vigência</div>
+                <div style={css.infoValue}>
+                  {formatarTimestampData(planoIniciadoEmAtual)}
                 </div>
-              )}
+              </div>
+
+              <div style={css.infoItem}>
+                <div style={css.infoLabel}>Válido até</div>
+                <div style={css.infoValue}>
+                  {formatarTimestampData(planoExpiraEmAtual)}
+                </div>
+              </div>
+
+              <div style={css.infoItem}>
+                <div style={css.infoLabel}>Tempo restante</div>
+                <div style={css.infoValue}>
+                  {diasRestantesPlano !== null
+                    ? `${diasRestantesPlano} dia(s)`
+                    : "—"}
+                </div>
+              </div>
             </div>
 
-            <div style={css.heroActions}>
-              <button onClick={adicionarSaldo} style={css.primaryButton}>
-                + Adicionar R$ 200
-              </button>
-
-              <button onClick={abrirExtrato} style={css.secondaryHeroButton}>
-                Ver extrato
-              </button>
-
-              <button onClick={handleLogout} style={css.dangerHeroButton}>
-                Sair
-              </button>
+            <div style={css.planoAviso}>
+              Enquanto o plano PRO estiver ativo, sua operação mantém os benefícios
+              premium, incluindo maior capacidade operacional, 48h de exclusividade e
+              melhor custo por lead.
             </div>
           </div>
-        </section>
+        )}
 
-        <section style={css.kpiGrid}>
-          <div style={css.kpiCard}>
-            <div style={css.kpiLabel}>Saldo atual</div>
-            <div style={css.kpiValue}>
-              {saldoAtual !== null ? formatMoeda(saldoAtual) : "—"}
-            </div>
-            <div style={css.kpiNote}>Saldo disponível para assumir novos leads.</div>
-          </div>
+        <UpgradeBanner
+          visivel={getPlano(corretor) === "BASIC"}
+          economiaTotal={economiaTotalPro}
+          onAbrirUpgrade={() => {
+            setMensagemUpgrade(
+              "Faça upgrade para o Plano PRO anual e amplie sua operação dentro da plataforma."
+            );
+            setModalUpgradeAberto(true);
+          }}
+          formatMoeda={formatMoeda}
+        />
 
-          <div style={css.kpiCard}>
-            <div style={css.kpiLabel}>Leads disponíveis</div>
-            <div style={css.kpiValue}>{metricas.disponiveis}</div>
-            <div style={css.kpiNote}>Leads prontos para distribuição neste momento.</div>
-          </div>
+        <DashboardKPIs
+          totalLeads={totalLeads}
+          leadsDisponiveis={leadsDisponiveis}
+          leadsQuentes={leadsQuentes}
+          leadsProntos={leadsProntos}
+          saldoAtual={saldoAtual}
+          formatMoeda={formatMoeda}
+        />
 
-          <div style={css.kpiCard}>
-            <div style={css.kpiLabel}>Em atendimento</div>
-            <div style={css.kpiValue}>{metricas.emAtendimento}</div>
-            <div style={css.kpiNote}>Leads atualmente sob responsabilidade de corretor.</div>
-          </div>
-
-          <div style={css.kpiCard}>
-            <div style={css.kpiLabel}>Aguardando enquete</div>
-            <div style={css.kpiValue}>{metricas.aguardandoEnquete}</div>
-            <div style={css.kpiNote}>Leads pendentes de resposta do cliente.</div>
-          </div>
-        </section>
+        <LeadFilters
+          filtroBusca={filtroBusca}
+          setFiltroBusca={setFiltroBusca}
+          filtroStatus={filtroStatus}
+          setFiltroStatus={setFiltroStatus}
+          filtroNivel={filtroNivel}
+          setFiltroNivel={setFiltroNivel}
+        />
 
         <div style={css.sectionHeader}>
           <div>
-            <h2 style={css.sectionTitle}>Leads do pool</h2>
-            <p style={css.sectionDescription}>
-              Visualização comercial com dados públicos, perfil do cliente e ações de
-              atendimento.
-            </p>
+            <h2 style={css.sectionTitle}>Oportunidades prontas para atendimento</h2>
           </div>
         </div>
 
-        {leads.length === 0 ? (
+        {leadsFiltrados.length === 0 ? (
           <div style={css.emptyState}>
             <p style={{ margin: 0, fontSize: 17, fontWeight: 700, color: "#0f172a" }}>
               Nenhum lead encontrado.
@@ -1236,394 +1071,15 @@ export default function Dashboard() {
           </div>
         ) : (
           <div style={css.leadGrid}>
-            {leads.map((lead) => {
-              const isDisponivel = lead.status === "disponivel";
-              const aguardandoEnquete = lead.status === "aguardando_enquete";
-              const processando = processandoLeadId === lead.id;
-              const completo = podeVerCompleto(lead, corretor);
-              const pro = showCampoPro();
-              const statusStyle = getStatusStyles(lead.status);
-              const nivelStyle = getNivelStyles(lead.nivelLead);
-              const bloqueadoBasic = isLeadBloqueadoParaBasic(lead);
-              const precoOriginal = getPrecoOriginalPorNivel(lead.nivelLead);
-
-              return (
-                <div key={lead.id} style={css.leadCard}>
-                  <div style={css.leadHeader}>
-                    <div>
-                      <h3 style={css.leadName}>{renderNome(lead)}</h3>
-                      <p style={css.leadPhone}>{renderTelefone(lead)}</p>
-                    </div>
-
-                    <div style={css.badgeRow}>
-                      <span
-                        style={{
-                          ...css.badge,
-                          backgroundColor: nivelStyle.bg,
-                          color: nivelStyle.color,
-                          border: nivelStyle.border,
-                        }}
-                      >
-                        {nivelStyle.label}
-                      </span>
-
-                      <span
-                        style={{
-                          ...css.badge,
-                          backgroundColor: statusStyle.bg,
-                          color: statusStyle.color,
-                          border: statusStyle.border,
-                        }}
-                      >
-                        {getStatusLabel(lead.status)}
-                      </span>
-                    </div>
-                  </div>
-
-                  <div style={css.priceCard}>
-                    <div>
-                      <div style={css.priceLabel}>Oferta do lead</div>
-
-                      {precoOriginal !== null && (
-                        <div style={css.oldPrice}>{formatMoeda(precoOriginal)}</div>
-                      )}
-
-                      <div style={css.priceValue}>
-                        {typeof lead.precoLead === "number"
-                          ? formatMoeda(lead.precoLead)
-                          : "—"}
-                      </div>
-
-                      <div style={css.priceSub}>
-                        {lead.nivelLead ? nivelStyle.label : "Lead"} • {getTipoInteresse(lead)}
-                      </div>
-                    </div>
-
-                    <div style={{ textAlign: "right" }}>
-                      <div style={css.priceLabel}>Expiração / janela</div>
-                      <div
-                        style={{
-                          ...css.priceValue,
-                          fontSize: 20,
-                        }}
-                      >
-                        {formatCountdown(lead.expiresAt || lead.lockUntil)}
-                      </div>
-                      <div style={css.priceSub}>{formatTimeAgoFromLead(lead)}</div>
-                    </div>
-                  </div>
-
-                  {!completo && (
-                    <div style={css.unlockBox}>
-                      Informações completas liberadas após assumir o lead.
-                    </div>
-                  )}
-
-                  <div style={css.infoSection}>
-                    <h4 style={css.infoTitle}>Resumo do lead</h4>
-                    <div style={css.infoGrid}>
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Cidade</div>
-                        <div style={css.infoValue}>{lead.cidade || "—"}</div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Bairro</div>
-                        <div style={css.infoValue}>{lead.bairro || "—"}</div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Tipo de interesse</div>
-                        <div style={css.infoValue}>{getTipoInteresse(lead)}</div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Tipo de imóvel</div>
-                        <div style={css.infoValue}>{lead.tipoImovel || "—"}</div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Faixa de valor</div>
-                        <div style={css.infoValue}>{getFaixaValor(lead)}</div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Criado em</div>
-                        <div style={css.infoValue}>{formatLeadCreatedDate(lead)}</div>
-                      </div>
-
-                      {pro ? (
-                        <>
-                          <div style={css.infoItem}>
-                            <div style={css.infoLabel}>Nível do lead</div>
-                            <div style={css.infoValue}>{nivelStyle.label}</div>
-                          </div>
-
-                          <div style={css.infoItem}>
-                            <div style={css.infoLabel}>Origem</div>
-                            <div style={css.infoValue}>{lead.origem || "—"}</div>
-                          </div>
-
-                          <div style={css.infoItem}>
-                            <div style={css.infoLabel}>Prazo / urgência</div>
-                            <div style={css.infoValue}>
-                              {lead.prazo || lead.urgencia || "—"}
-                            </div>
-                          </div>
-
-                          <div style={css.infoItem}>
-                            <div style={css.infoLabel}>Atualizado em</div>
-                            <div style={css.infoValue}>
-                              {formatDateTime(lead.updatedAt || lead.atualizadoEm)}
-                            </div>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div style={css.infoItem}>
-                            <div style={css.infoLabel}>Nível do lead</div>
-                            <div style={css.infoValue}>{nivelStyle.label}</div>
-                          </div>
-
-                          <div style={css.infoItem}>
-                            <div style={css.infoLabel}>Atualizado em</div>
-                            <div style={css.infoValue}>
-                              {formatDateTime(lead.updatedAt || lead.atualizadoEm)}
-                            </div>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  <div style={css.infoSection}>
-                    <h4 style={css.infoTitle}>Perfil do cliente</h4>
-                    <div style={css.infoGrid}>
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Profissão</div>
-                        <div style={css.infoValue}>
-                          {renderCampoSensivel(lead, lead.profissao)}
-                        </div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Renda</div>
-                        <div style={css.infoValue}>
-                          {renderCampoSensivel(
-                            lead,
-                            typeof lead.renda === "number"
-                              ? formatMoeda(lead.renda)
-                              : lead.renda
-                          )}
-                        </div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Situação atual</div>
-                        <div style={css.infoValue}>
-                          {renderCampoSensivel(lead, lead.situacaoAtual)}
-                        </div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Motivo da mudança</div>
-                        <div style={css.infoValue}>
-                          {renderCampoSensivel(lead, lead.motivoMudanca)}
-                        </div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Detalhes do interesse</div>
-                        <div style={css.infoValue}>
-                          {renderCampoSensivel(lead, lead.detalhesInteresse)}
-                        </div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Preferência do imóvel</div>
-                        <div style={css.infoValue}>
-                          {renderCampoSensivel(lead, lead.preferenciaImovel)}
-                        </div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Quartos</div>
-                        <div style={css.infoValue}>
-                          {renderCampoSensivel(lead, lead.quartos)}
-                        </div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Entrada disponível</div>
-                        <div style={css.infoValue}>
-                          {renderCampoSensivel(lead, lead.entradaDisponivel)}
-                        </div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Financiamento aprovado</div>
-                        <div style={css.infoValue}>
-                          {renderCampoSensivel(lead, lead.financiamentoAprovado)}
-                        </div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>FGTS</div>
-                        <div style={css.infoValue}>
-                          {renderCampoSensivel(lead, lead.fgts)}
-                        </div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Observações</div>
-                        <div style={css.infoValue}>
-                          {renderCampoSensivel(lead, lead.observacoes)}
-                        </div>
-                      </div>
-
-                      <div style={css.infoItem}>
-                        <div style={css.infoLabel}>Mensagem do cliente</div>
-                        <div style={css.infoValue}>
-                          {renderCampoSensivel(lead, lead.mensagemCliente)}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {(completo || isAdmin(corretor)) && (
-                    <div style={css.infoSection}>
-                      <h4 style={css.infoTitle}>Enquete</h4>
-                      <div style={css.infoGrid}>
-                        <div style={css.infoItem}>
-                          <div style={css.infoLabel}>Enquete enviada</div>
-                          <div style={css.infoValue}>
-                            {lead.enqueteEnviada ? "Sim" : "Não"}
-                          </div>
-                        </div>
-
-                        <div style={css.infoItem}>
-                          <div style={css.infoLabel}>Enviada em</div>
-                          <div style={css.infoValue}>
-                            {formatDateTime(lead.enqueteEnviadaAt)}
-                          </div>
-                        </div>
-
-                        <div style={css.infoItem}>
-                          <div style={css.infoLabel}>Respondida</div>
-                          <div style={css.infoValue}>
-                            {lead.enqueteRespondida ? "Sim" : "Não"}
-                          </div>
-                        </div>
-
-                        <div style={css.infoItem}>
-                          <div style={css.infoLabel}>Resposta</div>
-                          <div style={css.infoValue}>{lead.enqueteResposta || "—"}</div>
-                        </div>
-
-                        <div style={css.infoItem}>
-                          <div style={css.infoLabel}>Tentativas</div>
-                          <div style={css.infoValue}>{lead.tentativasEnquete ?? 0}</div>
-                        </div>
-
-                        <div style={css.infoItem}>
-                          <div style={css.infoLabel}>Última tentativa</div>
-                          <div style={css.infoValue}>
-                            {formatDateTime(lead.ultimaTentativaEnqueteAt)}
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  <div style={css.actionsRow}>
-                    {isDisponivel && !isLeadOwner(lead, corretor) && (
-                      <>
-                        {bloqueadoBasic ? (
-                          <button
-                            onClick={() => setModalUpgradeAberto(true)}
-                            style={{
-                              ...css.actionDisabled,
-                              cursor: "pointer",
-                              backgroundColor: "#fff7ed",
-                              border: "1px solid #fdba74",
-                              color: "#9a3412",
-                            }}
-                          >
-                            🔒 Disponível no plano PRO
-                          </button>
-                        ) : (
-                          <button
-                            onClick={() => assumirLead(lead.id)}
-                            disabled={processando}
-                            style={{
-                              ...css.actionPrimary,
-                              backgroundColor: processando ? "#94a3b8" : "#2563eb",
-                              cursor: processando ? "not-allowed" : "pointer",
-                              boxShadow: processando
-                                ? "none"
-                                : "0 10px 20px rgba(37,99,235,0.18)",
-                            }}
-                          >
-                            Assumir lead
-                          </button>
-                        )}
-                      </>
-                    )}
-
-                    {isDisponivel && (
-                      <button
-                        onClick={() => prepararEnquete(lead)}
-                        disabled={processando}
-                        style={{
-                          ...css.actionWarning,
-                          backgroundColor: processando ? "#94a3b8" : "#f59e0b",
-                          cursor: processando ? "not-allowed" : "pointer",
-                          boxShadow: processando
-                            ? "none"
-                            : "0 10px 20px rgba(245,158,11,0.18)",
-                        }}
-                      >
-                        Preparar enquete
-                      </button>
-                    )}
-
-                    {aguardandoEnquete && (
-                      <>
-                        <button
-                          onClick={() => responderEnqueteLead(lead.id, "SIM")}
-                          disabled={processando}
-                          style={{
-                            ...css.actionSuccess,
-                            backgroundColor: processando ? "#94a3b8" : "#10b981",
-                            cursor: processando ? "not-allowed" : "pointer",
-                            boxShadow: processando
-                              ? "none"
-                              : "0 10px 20px rgba(16,185,129,0.18)",
-                          }}
-                        >
-                          Cliente respondeu SIM
-                        </button>
-
-                        <button
-                          onClick={() => responderEnqueteLead(lead.id, "NAO")}
-                          disabled={processando}
-                          style={{
-                            ...css.actionDanger,
-                            backgroundColor: processando ? "#94a3b8" : "#ef4444",
-                            cursor: processando ? "not-allowed" : "pointer",
-                            boxShadow: processando
-                              ? "none"
-                              : "0 10px 20px rgba(239,68,68,0.16)",
-                          }}
-                        >
-                          Cliente respondeu NÃO
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
+            {leadsFiltrados.map((lead) => (
+              <LeadCard
+                key={lead.id}
+                lead={lead}
+                corretor={corretor}
+                onAssumir={assumirLead}
+                onEnviarEnquete={prepararEnquetePorLeadId}
+              />
+            ))}
           </div>
         )}
       </div>
@@ -1784,7 +1240,7 @@ export default function Dashboard() {
                     </div>
                   ) : (
                     <div style={{ display: "grid", gap: 12 }}>
-                      {extrato.transacoes.map((transacao, index) => {
+                      {extrato.transacoes.map((transacao: any, index: number) => {
                         const isCredito = transacao.tipo === "credito";
 
                         return (
@@ -1880,42 +1336,59 @@ export default function Dashboard() {
 
       {modalUpgradeAberto && (
         <div style={css.overlay}>
-          <div
-            style={{
-              ...css.modal,
-              maxWidth: 560,
-            }}
-          >
-            <h3 style={css.modalTitle}>Desbloqueie o Plano PRO</h3>
+          <div style={css.upgradeModal}>
+            <div style={css.upgradeBadge}>Plano BASIC no limite operacional</div>
 
-            <p style={{ color: "#475569", lineHeight: 1.7, marginTop: 0 }}>
-              Faça upgrade para o <strong>Plano PRO</strong> e tenha acesso a leads com
-              mais potencial de fechamento e mais informações para conversão.
+            <h3 style={{ ...css.modalTitle, fontSize: 24, marginBottom: 10 }}>
+              Desbloqueie uma operação mais forte com o Plano PRO
+            </h3>
+
+            <p style={css.upgradeText}>{mensagemUpgrade}</p>
+
+            <p style={{ ...css.upgradeText, marginTop: 10 }}>
+              No plano BASIC você mantém até <strong>1 lead ativo</strong>. Com o
+              <strong> Plano PRO anual</strong>, você amplia sua capacidade comercial e
+              ganha mais força dentro da plataforma.
             </p>
 
-            <div style={{ ...css.infoSection, marginTop: 16 }}>
-              <h4 style={css.infoTitle}>No Plano PRO você desbloqueia:</h4>
-
-              <div style={{ display: "grid", gap: 10 }}>
-                <div style={css.infoItem}>
-                  <div style={css.infoValue}>• Leads Quentes e Leads Prontos</div>
-                </div>
-                <div style={css.infoItem}>
-                  <div style={css.infoValue}>• Mais informações do cliente</div>
-                </div>
-                <div style={css.infoItem}>
-                  <div style={css.infoValue}>• 48h de exclusividade por lead</div>
-                </div>
-                <div style={css.infoItem}>
-                  <div style={css.infoValue}>• Prioridade na distribuição</div>
-                </div>
-                <div style={css.infoItem}>
-                  <div style={css.infoValue}>• Maior chance de fechamento</div>
-                </div>
+            <div style={{ ...css.infoSection, marginTop: 14 }}>
+              <h4 style={css.infoTitle}>Vigência do plano</h4>
+              <div style={css.infoValue}>
+                Assinatura anual com validade de 12 meses a partir da ativação.
               </div>
             </div>
 
-            <div style={css.modalFooter}>
+            <div style={css.upgradeGrid}>
+              <div style={css.upgradeCard}>
+                <h4 style={css.upgradeCardTitle}>Até 10 leads ativos</h4>
+                <p style={css.upgradeCardText}>
+                  Atenda mais oportunidades ao mesmo tempo.
+                </p>
+              </div>
+
+              <div style={css.upgradeCard}>
+                <h4 style={css.upgradeCardTitle}>48h de exclusividade</h4>
+                <p style={css.upgradeCardText}>
+                  Mais tempo para abordagem e fechamento.
+                </p>
+              </div>
+
+              <div style={css.upgradeCard}>
+                <h4 style={css.upgradeCardTitle}>Melhor custo por lead</h4>
+                <p style={css.upgradeCardText}>
+                  Mais eficiência financeira na operação.
+                </p>
+              </div>
+
+              <div style={css.upgradeCard}>
+                <h4 style={css.upgradeCardTitle}>Mais força comercial</h4>
+                <p style={css.upgradeCardText}>
+                  Mais liberdade para crescer e converter.
+                </p>
+              </div>
+            </div>
+
+            <div style={{ ...css.modalFooter, marginTop: 16 }}>
               <button
                 onClick={() => window.open("https://wa.me/558788550592", "_blank")}
                 style={css.actionSuccess}
@@ -1924,12 +1397,10 @@ export default function Dashboard() {
               </button>
 
               <button
-                onClick={() => {
-                  alert("Em breve: ativação automática do Plano PRO.");
-                }}
+                onClick={() => navigate("/planos")}
                 style={css.actionPrimary}
               >
-                Fazer upgrade
+                Ver plano PRO
               </button>
 
               <button
@@ -1939,7 +1410,7 @@ export default function Dashboard() {
                   cursor: "pointer",
                 }}
               >
-                Fechar
+                Continuar no BASIC
               </button>
             </div>
           </div>
