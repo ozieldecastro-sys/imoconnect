@@ -132,29 +132,29 @@ function Planos() {
 
   const comparativo = [
     {
-      criterio: "Tipos de lead",
-      basic: "Assume apenas Lead em Oportunidade",
-      pro: "Assume Lead em Oportunidade, Lead Quente e Lead Pronto",
+      criterio: "Faixa de atuação",
+      basic: "Entrada no sistema com operação mais enxuta",
+      pro: "Operação ampliada para trabalhar oportunidades mais fortes",
+    },
+    {
+      criterio: "Níveis de lead",
+      basic: "Lead em Oportunidade",
+      pro: "Lead em Oportunidade, Lead Quente e Lead Pronto",
     },
     {
       criterio: "Exclusividade",
-      basic: "24 horas por lead assumido",
-      pro: "48 horas por lead assumido",
+      basic: "24 horas por lead",
+      pro: "48 horas por lead",
     },
     {
-      criterio: "Visualização",
-      basic: "Dados mais limitados",
-      pro: "Mais contexto e visão comercial ampliada",
+      criterio: "Capacidade operacional",
+      basic: "Modelo de entrada",
+      pro: "Até 10 leads ativos com mais liberdade comercial",
     },
     {
-      criterio: "Posicionamento",
-      basic: "Operação inicial",
-      pro: "Operação com mais força comercial",
-    },
-    {
-      criterio: "Potencial de conversão",
-      basic: "Base de entrada",
-      pro: "Melhor chance de fechamento",
+      criterio: "Poder de decisão",
+      basic: "Visão mais limitada",
+      pro: "Mais contexto para decidir e agir mais rápido",
     },
   ];
 
@@ -164,24 +164,10 @@ function Planos() {
 
   function getTextoBotaoPrincipal() {
     if (checkoutEmAndamento) {
-      return formaPagamentoSelecionada === "parcelado12x"
-        ? "Preparando checkout em 12x..."
-        : "Preparando checkout à vista...";
+      return "Preparando checkout...";
     }
 
-    return formaPagamentoSelecionada === "parcelado12x"
-      ? "👑 Quero ativar o PRO em 12x"
-      : "👑 Quero ativar o PRO à vista";
-  }
-
-  function getTextoBotaoResumo() {
-    if (checkoutEmAndamento) {
-      return "Gerando checkout...";
-    }
-
-    return formaPagamentoSelecionada === "parcelado12x"
-      ? "👑 Ativar PRO em 12x"
-      : "👑 Ativar PRO à vista";
+    return "👑 Ativar PRO";
   }
 
   async function iniciarCheckoutPro() {
@@ -247,9 +233,6 @@ function Planos() {
         },
       };
 
-      console.log("[Planos] Iniciando checkout PRO...");
-      console.log("[Planos] Payload enviado:", payload);
-
       const response = await fetch(
         "https://us-central1-imoconnect-9d71c.cloudfunctions.net/criarCheckoutProAsaasSandbox",
         {
@@ -262,9 +245,6 @@ function Planos() {
       );
 
       const textoBruto = await response.text();
-
-      console.log("[Planos] HTTP status:", response.status);
-      console.log("[Planos] Resposta bruta:", textoBruto);
 
       let responseData: CheckoutResponse | null = null;
 
@@ -340,21 +320,20 @@ function Planos() {
         </div>
 
         <div className="mb-6 overflow-hidden rounded-3xl bg-gradient-to-r from-slate-950 via-slate-900 to-blue-900 shadow-xl">
-          <div className="grid gap-6 px-6 py-8 lg:grid-cols-[1.4fr_0.8fr] lg:px-8">
+          <div className="grid gap-6 px-6 py-8 lg:grid-cols-[1.35fr_0.85fr] lg:px-8">
             <div className="text-white">
               <div className="inline-flex rounded-full bg-white/10 px-4 py-2 text-sm font-semibold text-blue-100 backdrop-blur">
                 👑 Planos ImoConnect
               </div>
 
               <h1 className="mt-5 max-w-3xl text-3xl font-bold tracking-tight sm:text-4xl">
-                Cresça com mais acesso, mais exclusividade e mais chance de
-                conversão
+                Cresça com mais acesso, mais exclusividade e mais chance de conversão
               </h1>
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-200 sm:text-base">
-                O plano PRO foi pensado para o corretor que quer atuar com mais
-                velocidade, acessar leads mais valiosos e trabalhar com melhor
-                posicionamento comercial dentro da plataforma.
+                O PRO foi pensado para o corretor que quer operar com mais
+                amplitude, mais velocidade comercial e melhor posição para
+                disputar oportunidades mais valiosas dentro da plataforma.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
@@ -368,9 +347,7 @@ function Planos() {
                   </button>
                 ) : (
                   <div className="inline-flex items-center justify-center rounded-2xl bg-emerald-500 px-5 py-3 text-sm font-bold text-white">
-                    {planoAtual === "ADMIN"
-                      ? "Seu perfil já está acima do PRO"
-                      : "Você já está no plano PRO"}
+                    Você já está no plano PRO
                   </div>
                 )}
               </div>
@@ -421,27 +398,17 @@ function Planos() {
 
               <p className="mt-3 text-sm leading-6 text-slate-200">
                 {planoAtual === "BASIC" &&
-                  "Você já pode operar no sistema, mas ainda está limitado aos leads de entrada. O PRO amplia seu poder de atuação."}
+                  "Você já opera no sistema, mas ainda está no plano de entrada. O PRO amplia seu alcance comercial e sua capacidade operacional."}
                 {planoAtual === "PRO" &&
                   "Você já está no plano ideal para operar com mais amplitude, mais velocidade e mais exclusividade."}
                 {planoAtual === "ADMIN" &&
-                  "Seu perfil possui acesso superior. Esta tela serve como referência comercial dos planos disponíveis."}
+                  "Seu perfil possui acesso superior. Esta tela funciona apenas como referência comercial da estrutura dos planos."}
               </p>
-
-              <div className="mt-5 rounded-2xl bg-white/10 p-4">
-                <p className="text-xs uppercase tracking-wide text-blue-100">
-                  Objetivo desta página
-                </p>
-                <p className="mt-2 text-sm font-medium text-white">
-                  Mostrar de forma clara por que o PRO melhora seu posicionamento
-                  comercial
-                </p>
-              </div>
 
               {!jaTemPlanoAvancado && (
                 <div className="mt-5 rounded-2xl border border-white/10 bg-slate-950/40 p-4">
                   <p className="text-xs uppercase tracking-wide text-blue-100">
-                    Condição comercial oficial
+                    Escolha sua condição de pagamento
                   </p>
 
                   <div className="mt-3 space-y-3">
@@ -474,11 +441,24 @@ function Planos() {
                           Parcelado no cartão
                         </p>
                         <p className="text-sm text-slate-200">
-                          12x de R$ 99,00 no plano anual PRO
+                          Parcelamento disponível em até 12x de R$ 99,00
                         </p>
                       </div>
                     </label>
                   </div>
+                </div>
+              )}
+
+              {jaTemPlanoAvancado && (
+                <div className="mt-5 rounded-2xl bg-white/10 p-4">
+                  <p className="text-xs uppercase tracking-wide text-blue-100">
+                    Seu momento no sistema
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-white">
+                    Hoje você já opera em posição mais forte para disputar leads
+                    melhores, com mais tempo de exclusividade e melhor capacidade
+                    de atendimento.
+                  </p>
                 </div>
               )}
             </div>
@@ -498,13 +478,13 @@ function Planos() {
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Entrada oficial na plataforma para começar a operar com menor
-                  complexidade.
+                  A porta de entrada para começar a operar dentro da plataforma
+                  com estrutura mais simples.
                 </p>
               </div>
 
               <div className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-700">
-                {planoAtual === "BASIC" ? "Plano atual" : "Disponível"}
+                {planoAtual === "BASIC" ? "Seu plano hoje" : "Disponível"}
               </div>
             </div>
 
@@ -525,16 +505,16 @@ function Planos() {
                 ✅ Visualiza os leads disponíveis no sistema
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Assume apenas Lead em Oportunidade
+                ✅ Assume Lead em Oportunidade
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Exclusividade de 24 horas
+                ✅ Exclusividade de 24 horas por lead
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Operação comercial inicial
+                ✅ Modelo ideal para iniciar operação
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Dados mais limitados do lead
+                ✅ Visão mais limitada para decisão comercial
               </div>
             </div>
           </div>
@@ -555,14 +535,14 @@ function Planos() {
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  O plano ideal para o corretor que quer mais acesso, mais
-                  velocidade e mais resultado.
+                  O plano ideal para o corretor que quer operar com mais acesso,
+                  mais velocidade e mais resultado.
                 </p>
               </div>
 
               <div className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700">
                 {planoAtual === "PRO" || planoAtual === "ADMIN"
-                  ? "Plano atual"
+                  ? "Seu plano hoje"
                   : "Upgrade"}
               </div>
             </div>
@@ -602,7 +582,7 @@ function Planos() {
                 ✅ Mais contexto comercial para decidir melhor
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Melhor posição para operar leads mais valiosos
+                ✅ Melhor posição para disputar leads mais valiosos
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
                 ✅ Estrutura ideal para escalar atendimento e fechamento
@@ -611,40 +591,43 @@ function Planos() {
 
             <div className="mt-6 rounded-2xl bg-gradient-to-r from-slate-950 to-slate-800 p-5 text-white">
               <p className="text-sm font-semibold text-blue-200">
-                Por que o PRO converte melhor?
+                Por que o PRO entrega mais resultado?
               </p>
               <p className="mt-2 text-sm leading-7 text-slate-200">
-                Porque amplia acesso, aumenta exclusividade e melhora a
+                Porque amplia acesso, aumenta exclusividade e melhora sua
                 capacidade de decisão comercial. Na prática, isso coloca o
-                corretor em melhor posição para agir antes da concorrência.
+                corretor em melhor posição para agir antes da concorrência e
+                trabalhar melhor cada oportunidade.
               </p>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
-              <p className="text-sm font-semibold text-slate-500">
-                Assinatura anual
-              </p>
+            {!jaTemPlanoAvancado && (
+              <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
+                <p className="text-sm font-semibold text-slate-500">
+                  Assinatura anual
+                </p>
 
-              {formaPagamentoSelecionada === "avista" ? (
-                <>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">
-                    R$ 990,00
-                  </p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Pagamento à vista no plano anual PRO
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="mt-2 text-3xl font-bold text-slate-900">
-                    12x de R$ 99,00
-                  </p>
-                  <p className="mt-2 text-sm text-slate-600">
-                    Parcelamento no cartão no plano anual PRO
-                  </p>
-                </>
-              )}
-            </div>
+                {formaPagamentoSelecionada === "avista" ? (
+                  <>
+                    <p className="mt-2 text-3xl font-bold text-slate-900">
+                      R$ 990,00
+                    </p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      Pagamento à vista no plano anual PRO
+                    </p>
+                  </>
+                ) : (
+                  <>
+                    <p className="mt-2 text-3xl font-bold text-slate-900">
+                      Até 12x de R$ 99,00
+                    </p>
+                    <p className="mt-2 text-sm text-slate-600">
+                      Parcelamento disponível no cartão no plano anual PRO
+                    </p>
+                  </>
+                )}
+              </div>
+            )}
 
             <div className="mt-6">
               {jaTemPlanoAvancado ? (
@@ -652,9 +635,7 @@ function Planos() {
                   disabled
                   className="inline-flex w-full items-center justify-center rounded-2xl bg-emerald-600 px-5 py-4 text-sm font-bold text-white opacity-90"
                 >
-                  {planoAtual === "ADMIN"
-                    ? "Seu perfil já está acima do PRO"
-                    : "Você já está no plano PRO"}
+                  Você já está no plano PRO
                 </button>
               ) : (
                 <button
@@ -736,8 +717,8 @@ function Planos() {
               </h3>
               <p className="mt-2 text-sm leading-7 text-slate-600">
                 O BASIC coloca você na operação. O PRO coloca você em posição
-                comercial muito mais forte para abordar melhor, disputar com mais
-                velocidade e converter com mais qualidade.
+                comercial mais forte para abordar melhor, disputar mais rápido e
+                converter com mais qualidade.
               </p>
             </div>
 
@@ -747,11 +728,11 @@ function Planos() {
                 disabled={checkoutEmAndamento}
                 className="inline-flex items-center justify-center rounded-2xl bg-slate-900 px-5 py-4 text-sm font-bold text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-70"
               >
-                {getTextoBotaoResumo()}
+                {checkoutEmAndamento ? "Gerando checkout..." : "👑 Ativar PRO"}
               </button>
             ) : (
               <div className="rounded-2xl bg-emerald-50 px-5 py-4 text-sm font-semibold text-emerald-700">
-                Seu plano atual já permite operação avançada
+                Sua operação já está no nível premium
               </div>
             )}
           </div>
