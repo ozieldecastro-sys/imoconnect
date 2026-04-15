@@ -328,11 +328,26 @@ function styles() {
     planoCard: {
       marginTop: 18,
       marginBottom: 18,
-      backgroundColor: "#ffffff",
-      border: "1px solid #dbeafe",
-      borderRadius: 20,
-      padding: 18,
-      boxShadow: "0 10px 28px rgba(37,99,235,0.06)",
+      background:
+        "linear-gradient(135deg, #0f172a 0%, #111827 45%, #1d4ed8 100%)",
+      border: "1px solid rgba(96, 165, 250, 0.28)",
+      borderRadius: 26,
+      padding: 22,
+      boxShadow: "0 20px 48px rgba(15, 23, 42, 0.18)",
+      position: "relative",
+      overflow: "hidden",
+    } as CSSProperties,
+
+    planoGlow: {
+      position: "absolute",
+      right: -40,
+      top: -40,
+      width: 180,
+      height: 180,
+      borderRadius: "999px",
+      background: "rgba(255,255,255,0.08)",
+      filter: "blur(8px)",
+      pointerEvents: "none",
     } as CSSProperties,
 
     planoLinha: {
@@ -341,6 +356,8 @@ function styles() {
       alignItems: "center",
       gap: 12,
       flexWrap: "wrap",
+      position: "relative",
+      zIndex: 1,
     } as CSSProperties,
 
     planoTag: {
@@ -348,35 +365,139 @@ function styles() {
       alignItems: "center",
       padding: "7px 12px",
       borderRadius: 999,
-      backgroundColor: "#eff6ff",
-      color: "#1d4ed8",
+      backgroundColor: "rgba(255,255,255,0.14)",
+      color: "#dbeafe",
       fontSize: 12,
       fontWeight: 800,
+      backdropFilter: "blur(6px)",
     } as CSSProperties,
 
     planoTitulo: {
       margin: 0,
-      color: "#0f172a",
-      fontSize: 18,
-      fontWeight: 800,
+      color: "#ffffff",
+      fontSize: 24,
+      fontWeight: 900,
+      letterSpacing: "-0.03em",
+      lineHeight: 1.05,
     } as CSSProperties,
 
     planoTexto: {
+      margin: "8px 0 0 0",
+      color: "#dbeafe",
+      fontSize: 14,
+      lineHeight: 1.75,
+      maxWidth: 760,
+    } as CSSProperties,
+
+    planoResumoGrid: {
+      marginTop: 18,
+      display: "grid",
+      gridTemplateColumns: "1.1fr 0.9fr",
+      gap: 16,
+      position: "relative",
+      zIndex: 1,
+    } as CSSProperties,
+
+    planoResumoCard: {
+      backgroundColor: "rgba(255,255,255,0.08)",
+      border: "1px solid rgba(255,255,255,0.12)",
+      borderRadius: 18,
+      padding: 16,
+      backdropFilter: "blur(8px)",
+    } as CSSProperties,
+
+    planoResumoLabel: {
+      fontSize: 12,
+      color: "#bfdbfe",
+      marginBottom: 6,
+      fontWeight: 800,
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+    } as CSSProperties,
+
+    planoResumoValor: {
+      fontSize: 18,
+      color: "#ffffff",
+      fontWeight: 800,
+      lineHeight: 1.35,
+    } as CSSProperties,
+
+    planoMiniGrid: {
+      marginTop: 16,
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+      gap: 12,
+      position: "relative",
+      zIndex: 1,
+    } as CSSProperties,
+
+    planoMiniCard: {
+      backgroundColor: "rgba(255,255,255,0.08)",
+      border: "1px solid rgba(255,255,255,0.12)",
+      borderRadius: 16,
+      padding: 14,
+      backdropFilter: "blur(8px)",
+    } as CSSProperties,
+
+    planoMiniLabel: {
+      fontSize: 11,
+      color: "#bfdbfe",
+      marginBottom: 6,
+      fontWeight: 800,
+      textTransform: "uppercase",
+      letterSpacing: "0.08em",
+    } as CSSProperties,
+
+    planoMiniValue: {
+      fontSize: 14,
+      color: "#ffffff",
+      fontWeight: 700,
+      lineHeight: 1.45,
+    } as CSSProperties,
+
+    planoBeneficiosGrid: {
+      marginTop: 16,
+      display: "grid",
+      gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+      gap: 12,
+      position: "relative",
+      zIndex: 1,
+    } as CSSProperties,
+
+    planoBeneficioCard: {
+      backgroundColor: "#ffffff",
+      border: "1px solid #dbeafe",
+      borderRadius: 18,
+      padding: 14,
+      boxShadow: "0 10px 24px rgba(15, 23, 42, 0.08)",
+    } as CSSProperties,
+
+    planoBeneficioTitulo: {
+      margin: 0,
+      color: "#0f172a",
+      fontSize: 14,
+      fontWeight: 800,
+      lineHeight: 1.35,
+    } as CSSProperties,
+
+    planoBeneficioTexto: {
       margin: "6px 0 0 0",
       color: "#475569",
-      fontSize: 14,
-      lineHeight: 1.65,
+      fontSize: 13,
+      lineHeight: 1.6,
     } as CSSProperties,
 
     planoAviso: {
-      marginTop: 12,
-      padding: "12px 14px",
-      borderRadius: 14,
-      backgroundColor: "#f8fafc",
-      border: "1px solid #e2e8f0",
-      color: "#334155",
+      marginTop: 14,
+      padding: "14px 16px",
+      borderRadius: 16,
+      backgroundColor: "rgba(255,255,255,0.10)",
+      border: "1px solid rgba(255,255,255,0.12)",
+      color: "#e2e8f0",
       fontSize: 13,
-      lineHeight: 1.6,
+      lineHeight: 1.7,
+      position: "relative",
+      zIndex: 1,
     } as CSSProperties,
   };
 }
@@ -467,6 +588,37 @@ function montarCorretorBase(usuarioLocal: any): Corretor {
     tipo: usuarioLocal?.tipo,
     ativo: usuarioLocal?.ativo,
   };
+}
+
+function formatarStatusPlano(status: string) {
+  const valor = (status || "").toLowerCase();
+
+  if (valor === "ativo") return "Ativo";
+  if (valor === "vencido") return "Vencido";
+  if (valor === "pendente") return "Pendente";
+  if (valor === "cancelado") return "Cancelado";
+
+  return status || "Ativo";
+}
+
+function getMensagemRenovacao(diasRestantes: number | null) {
+  if (diasRestantes === null) {
+    return "Sua operação premium está ativa. Antes do vencimento, a renovação poderá ser validada dentro do fluxo do plano.";
+  }
+
+  if (diasRestantes <= 0) {
+    return "A vigência do seu plano está no limite. Recomendamos validar sua renovação para manter a operação premium sem interrupções.";
+  }
+
+  if (diasRestantes <= 15) {
+    return "Sua vigência entra em fase final em breve. Vale se organizar para renovar com antecedência e manter seus benefícios premium.";
+  }
+
+  if (diasRestantes <= 45) {
+    return "Seu plano segue ativo e saudável. Ainda assim, já vale acompanhar sua janela de renovação para não perder continuidade operacional.";
+  }
+
+  return "Seu plano premium está ativo e com boa folga de vigência. Sua operação segue liberada com mais capacidade, exclusividade e força comercial.";
 }
 
 export default function Dashboard() {
@@ -932,6 +1084,14 @@ export default function Dashboard() {
   const mostrarCardPlanoPro =
     (corretor?.plano || "BASIC").toUpperCase() === "PRO" && !!planoExpiraEmAtual;
 
+  const statusPlanoFormatado = useMemo(() => {
+    return formatarStatusPlano(planoStatusAtual || "ativo");
+  }, [planoStatusAtual]);
+
+  const mensagemRenovacao = useMemo(() => {
+    return getMensagemRenovacao(diasRestantesPlano);
+  }, [diasRestantesPlano]);
+
   if (loading) {
     return (
       <div style={css.page}>
@@ -976,12 +1136,18 @@ export default function Dashboard() {
 
         {mostrarCardPlanoPro && (
           <div style={css.planoCard}>
+            <div style={css.planoGlow} />
+
             <div style={css.planoLinha}>
               <div>
-                <div style={css.planoTag}>Plano PRO anual</div>
-                <h3 style={css.planoTitulo}>Seu plano premium está ativo</h3>
+                <div style={css.planoTag}>Plano PRO anual ativo</div>
+                <h3 style={css.planoTitulo}>
+                  Sua operação premium está liberada
+                </h3>
                 <p style={css.planoTexto}>
-                  Vigência de 12 meses com benefício operacional ampliado dentro da plataforma.
+                  Você já opera no nível mais forte do corretor dentro da plataforma,
+                  com mais capacidade operacional, 48 horas de exclusividade e melhor
+                  custo por lead para trabalhar conversão com mais margem.
                 </p>
               </div>
 
@@ -993,48 +1159,107 @@ export default function Dashboard() {
               </button>
             </div>
 
-            <div
-              style={{
-                marginTop: 14,
-                display: "grid",
-                gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-                gap: 12,
-              }}
-            >
-              <div style={css.infoItem}>
-                <div style={css.infoLabel}>Status do plano</div>
-                <div style={css.infoValue}>{planoStatusAtual || "ativo"}</div>
-              </div>
+            <div style={css.planoResumoGrid}>
+              <div style={css.planoResumoCard}>
+                <div style={css.planoResumoLabel}>Status da assinatura</div>
+                <div style={css.planoResumoValor}>{statusPlanoFormatado}</div>
 
-              <div style={css.infoItem}>
-                <div style={css.infoLabel}>Início da vigência</div>
-                <div style={css.infoValue}>
-                  {formatarTimestampData(planoIniciadoEmAtual)}
+                <div
+                  style={{
+                    marginTop: 12,
+                    height: 1,
+                    backgroundColor: "rgba(255,255,255,0.12)",
+                  }}
+                />
+
+                <div style={{ marginTop: 12 }}>
+                  <div style={css.planoResumoLabel}>Resumo estratégico</div>
+                  <div style={css.planoResumoValor}>
+                    Operação ampliada com prioridade comercial e mais tempo para
+                    abordagem e fechamento.
+                  </div>
                 </div>
               </div>
 
-              <div style={css.infoItem}>
-                <div style={css.infoLabel}>Válido até</div>
-                <div style={css.infoValue}>
+              <div style={css.planoResumoCard}>
+                <div style={css.planoResumoLabel}>Vigência atual</div>
+                <div style={css.planoResumoValor}>
+                  {formatarTimestampData(planoIniciadoEmAtual)} até{" "}
                   {formatarTimestampData(planoExpiraEmAtual)}
                 </div>
-              </div>
 
-              <div style={css.infoItem}>
-                <div style={css.infoLabel}>Tempo restante</div>
-                <div style={css.infoValue}>
-                  {diasRestantesPlano !== null
-                    ? `${diasRestantesPlano} dia(s)`
-                    : "—"}
+                <div
+                  style={{
+                    marginTop: 12,
+                    height: 1,
+                    backgroundColor: "rgba(255,255,255,0.12)",
+                  }}
+                />
+
+                <div style={{ marginTop: 12 }}>
+                  <div style={css.planoResumoLabel}>Tempo restante</div>
+                  <div style={css.planoResumoValor}>
+                    {diasRestantesPlano !== null
+                      ? `${diasRestantesPlano} dia(s)`
+                      : "—"}
+                  </div>
                 </div>
               </div>
             </div>
 
-            <div style={css.planoAviso}>
-              Enquanto o plano PRO estiver ativo, sua operação mantém os benefícios
-              premium, incluindo maior capacidade operacional, 48h de exclusividade e
-              melhor custo por lead.
+            <div style={css.planoMiniGrid}>
+              <div style={css.planoMiniCard}>
+                <div style={css.planoMiniLabel}>Leads liberados</div>
+                <div style={css.planoMiniValue}>
+                  Lead em Oportunidade, Lead Quente e Lead Pronto
+                </div>
+              </div>
+
+              <div style={css.planoMiniCard}>
+                <div style={css.planoMiniLabel}>Exclusividade</div>
+                <div style={css.planoMiniValue}>48 horas por lead assumido</div>
+              </div>
+
+              <div style={css.planoMiniCard}>
+                <div style={css.planoMiniLabel}>Capacidade operacional</div>
+                <div style={css.planoMiniValue}>Até 10 leads ativos simultaneamente</div>
+              </div>
+
+              <div style={css.planoMiniCard}>
+                <div style={css.planoMiniLabel}>Posicionamento</div>
+                <div style={css.planoMiniValue}>
+                  Melhor janela para disputar leads mais valiosos
+                </div>
+              </div>
             </div>
+
+            <div style={css.planoBeneficiosGrid}>
+              <div style={css.planoBeneficioCard}>
+                <h4 style={css.planoBeneficioTitulo}>Mais velocidade comercial</h4>
+                <p style={css.planoBeneficioTexto}>
+                  Seu tempo de resposta fica mais protegido com vigência de exclusividade
+                  maior para trabalhar cada oportunidade com calma e estratégia.
+                </p>
+              </div>
+
+              <div style={css.planoBeneficioCard}>
+                <h4 style={css.planoBeneficioTitulo}>Melhor custo por lead</h4>
+                <p style={css.planoBeneficioTexto}>
+                  O plano premium foi desenhado para dar mais eficiência financeira e
+                  melhorar a relação entre aquisição, atendimento e fechamento.
+                </p>
+              </div>
+
+              <div style={css.planoBeneficioCard}>
+                <h4 style={css.planoBeneficioTitulo}>Operação mais forte</h4>
+                <p style={css.planoBeneficioTexto}>
+                  Você ganha liberdade para ampliar carteira ativa e trabalhar múltiplas
+                  frentes sem o travamento do plano de entrada.
+                </p>
+              </div>
+            </div>
+
+            <div style={css.planoAviso}>{mensagemRenovacao}</div>
           </div>
         )}
 
