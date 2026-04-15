@@ -132,29 +132,29 @@ function Planos() {
 
   const comparativo = [
     {
-      criterio: "Faixa de atuação",
-      basic: "Entrada no sistema com operação mais enxuta",
-      pro: "Operação ampliada para trabalhar oportunidades mais fortes",
+      criterio: "Acesso aos leads",
+      basic: "Visualiza o pool completo para acompanhar o mercado e identificar oportunidades",
+      pro: "Visualiza o pool completo com operação mais forte para agir e converter",
     },
     {
-      criterio: "Níveis de lead",
-      basic: "Lead em Oportunidade",
-      pro: "Lead em Oportunidade, Lead Quente e Lead Pronto",
+      criterio: "Exclusividade por lead assumido",
+      basic: "24 horas",
+      pro: "48 horas",
     },
     {
-      criterio: "Exclusividade",
-      basic: "24 horas por lead",
-      pro: "48 horas por lead",
+      criterio: "Leads ativos simultâneos",
+      basic: "Até 1 lead ativo por vez",
+      pro: "Até 10 leads ativos simultaneamente",
     },
     {
       criterio: "Capacidade operacional",
-      basic: "Modelo de entrada",
-      pro: "Até 10 leads ativos com mais liberdade comercial",
+      basic: "Modelo de entrada para operação mais enxuta",
+      pro: "Estrutura mais forte para ampliar carteira e velocidade comercial",
     },
     {
-      criterio: "Poder de decisão",
-      basic: "Visão mais limitada",
-      pro: "Mais contexto para decidir e agir mais rápido",
+      criterio: "Eficiência comercial",
+      basic: "Custo e alcance mais limitados",
+      pro: "Melhor custo por lead e melhor posição para escalar",
     },
   ];
 
@@ -331,9 +331,9 @@ function Planos() {
               </h1>
 
               <p className="mt-4 max-w-2xl text-sm leading-7 text-slate-200 sm:text-base">
-                O PRO foi pensado para o corretor que quer operar com mais
-                amplitude, mais velocidade comercial e melhor posição para
-                disputar oportunidades mais valiosas dentro da plataforma.
+                O PRO foi desenhado para o corretor que quer trabalhar com mais
+                liberdade operacional, mais tempo para conduzir cada lead e melhor
+                condição comercial para crescer dentro da plataforma.
               </p>
 
               <div className="mt-6 flex flex-wrap gap-3">
@@ -398,7 +398,7 @@ function Planos() {
 
               <p className="mt-3 text-sm leading-6 text-slate-200">
                 {planoAtual === "BASIC" &&
-                  "Você já opera no sistema, mas ainda está no plano de entrada. O PRO amplia seu alcance comercial e sua capacidade operacional."}
+                  "Você já vê o mercado dentro do sistema, mas ainda opera com restrições maiores de exclusividade, capacidade operacional e condição comercial."}
                 {planoAtual === "PRO" &&
                   "Você já está no plano ideal para operar com mais amplitude, mais velocidade e mais exclusividade."}
                 {planoAtual === "ADMIN" &&
@@ -455,9 +455,9 @@ function Planos() {
                     Seu momento no sistema
                   </p>
                   <p className="mt-2 text-sm font-medium text-white">
-                    Hoje você já opera em posição mais forte para disputar leads
-                    melhores, com mais tempo de exclusividade e melhor capacidade
-                    de atendimento.
+                    Hoje você já opera com uma estrutura mais forte para assumir mais
+                    leads ao mesmo tempo, trabalhar com mais exclusividade e ampliar
+                    sua capacidade de conversão.
                   </p>
                 </div>
               )}
@@ -478,8 +478,8 @@ function Planos() {
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  A porta de entrada para começar a operar dentro da plataforma
-                  com estrutura mais simples.
+                  A porta de entrada para começar a operar dentro da plataforma com
+                  estrutura mais simples e menor compromisso financeiro.
                 </p>
               </div>
 
@@ -490,31 +490,32 @@ function Planos() {
 
             <div className="mt-6 rounded-2xl border border-slate-200 bg-slate-50 p-5">
               <p className="text-sm font-semibold text-slate-500">
-                Faixa de acesso
+                Visão dentro do sistema
               </p>
               <p className="mt-2 text-2xl font-bold text-slate-900">
-                Lead em Oportunidade
+                Acompanha o mercado
               </p>
               <p className="mt-2 text-sm text-slate-600">
-                Operação de entrada com menor barreira e menor complexidade.
+                Permite visualizar o ambiente comercial e começar a operar com menor
+                intensidade.
               </p>
             </div>
 
             <div className="mt-6 space-y-3">
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Visualiza os leads disponíveis no sistema
+                ✅ Visualiza qualquer categoria de lead no sistema
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Assume Lead em Oportunidade
+                ✅ Exclusividade de 24 horas por lead assumido
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Exclusividade de 24 horas por lead
+                ✅ Até 1 lead ativo por vez
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Modelo ideal para iniciar operação
+                ✅ Operação mais enxuta para começar
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Visão mais limitada para decisão comercial
+                ✅ Menor poder operacional e menor fôlego comercial
               </div>
             </div>
           </div>
@@ -535,8 +536,8 @@ function Planos() {
                 </h2>
 
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  O plano ideal para o corretor que quer operar com mais acesso,
-                  mais velocidade e mais resultado.
+                  O plano ideal para o corretor que quer mais alcance operacional,
+                  mais tempo de exclusividade e melhor condição comercial para crescer.
                 </p>
               </div>
 
@@ -550,13 +551,13 @@ function Planos() {
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
               <div className="rounded-2xl bg-blue-50 p-5 ring-1 ring-blue-100">
                 <p className="text-sm font-semibold text-blue-700">
-                  Faixa de acesso
+                  Capacidade operacional
                 </p>
                 <p className="mt-2 text-2xl font-bold text-slate-900">
-                  Todos os níveis
+                  Até 10 leads ativos
                 </p>
                 <p className="mt-2 text-sm leading-6 text-slate-600">
-                  Lead em Oportunidade, Lead Quente e Lead Pronto.
+                  Mais liberdade para tocar mais oportunidades ao mesmo tempo.
                 </p>
               </div>
 
@@ -573,19 +574,19 @@ function Planos() {
 
             <div className="mt-6 space-y-3">
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Assume Lead em Oportunidade, Lead Quente e Lead Pronto
+                ✅ Visualiza qualquer categoria de lead com mais força para operar
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Exclusividade de 48 horas por lead
+                ✅ Exclusividade de 48 horas por lead assumido
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Mais contexto comercial para decidir melhor
+                ✅ Até 10 leads ativos simultaneamente
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Melhor posição para disputar leads mais valiosos
+                ✅ Melhor custo por lead para escalar operação
               </div>
               <div className="rounded-2xl bg-slate-50 px-4 py-3 text-sm text-slate-700">
-                ✅ Estrutura ideal para escalar atendimento e fechamento
+                ✅ Mais contexto e melhor posição para converter
               </div>
             </div>
 
@@ -594,10 +595,9 @@ function Planos() {
                 Por que o PRO entrega mais resultado?
               </p>
               <p className="mt-2 text-sm leading-7 text-slate-200">
-                Porque amplia acesso, aumenta exclusividade e melhora sua
-                capacidade de decisão comercial. Na prática, isso coloca o
-                corretor em melhor posição para agir antes da concorrência e
-                trabalhar melhor cada oportunidade.
+                Porque o ganho real não está em “ver um tipo de lead específico”, mas
+                em operar com mais tempo, mais capacidade e melhor condição comercial
+                para transformar oportunidade em fechamento.
               </p>
             </div>
 
@@ -656,7 +656,8 @@ function Planos() {
               Comparativo direto
             </h3>
             <p className="mt-1 text-sm text-slate-600">
-              Veja lado a lado o ganho estratégico de sair do BASIC para o PRO.
+              Veja lado a lado onde realmente está a diferença operacional entre
+              BASIC e PRO.
             </p>
           </div>
 
@@ -716,9 +717,9 @@ function Planos() {
                 Resumo estratégico
               </h3>
               <p className="mt-2 text-sm leading-7 text-slate-600">
-                O BASIC coloca você na operação. O PRO coloca você em posição
-                comercial mais forte para abordar melhor, disputar mais rápido e
-                converter com mais qualidade.
+                O BASIC permite entrar e operar. O PRO aumenta o tempo, amplia a
+                capacidade e melhora a condição comercial para transformar esse
+                acesso em performance real.
               </p>
             </div>
 
